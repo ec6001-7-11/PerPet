@@ -1,0 +1,27 @@
+/**
+ * Created by iudayanga on 2/29/16.
+ */
+
+Avs.addMethods({
+    prepareAutocomplete: function(el, pcode, suburb, country){
+        if($(el)) {
+            new Autocomplete(el, {
+                serviceUrl: this.serviceUrl,
+                countryEl: country,
+                container: $(el).up(),
+                onSelect: function(value, data) {
+                    $(suburb).value = data[0].city;
+                    $(pcode).value = data[0].postcode;
+                    fireEvent($(country), 'change');
+                },
+                onLoadStart: function() {
+                    $(el).addClassName('avs-active');
+                },
+                onLoadComplete: function() {
+                    $(el).removeClassName('avs-active');
+                },
+                onAway: function() { }
+            });
+        }
+    }
+})

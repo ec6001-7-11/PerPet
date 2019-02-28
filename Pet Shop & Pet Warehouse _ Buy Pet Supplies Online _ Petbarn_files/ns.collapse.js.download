@@ -1,0 +1,65 @@
+/**
+ * ns-jquery-library - ns.Collapse.js
+ * Created by Shabith on 4/2/15.
+ */
+
+/*global NS */
+
+"use strict";
+
+var NS = NS || {};
+
+NS.collapse = {
+   VAR: {
+       //variables
+       collapseItems: '[data-ns-collapse]',
+       collapseActiveCls: 'ns-collapse-active'
+   },
+
+
+   init: function(){
+       //initialization
+       jQuery('body').on('click', this.VAR.collapseItems, function(){
+           if(!jQuery(this).hasClass(NS.collapse.VAR.collapseActiveCls)){
+               return;
+           }
+
+           var options = {
+                   duration: 400,
+                   easing: 'swing',
+                   start: function(){
+                        var event;
+                        if($target.hasClass('active')){
+                            event = jQuery.Event('ns:collapse.open');
+                        }else{
+                            event = jQuery.Event('ns:collapse.close');
+                        }
+                       $target.data('ns-collapse-trigger').trigger(event);
+                    },
+                    complete: function(){
+                        var event;
+                        if($target.hasClass('active')){
+                            event = jQuery.Event('ns:collapse.openComplete');
+                        }else{
+                            event = jQuery.Event('ns:collapse.closeComplete');
+                        }
+                        $target.data('ns-collapse-trigger').trigger(event);
+                    }
+               },
+               $target = jQuery(jQuery(this).attr('data-target'));
+
+           if(typeof Foundation !== 'undefined') jQuery.extend(options, Foundation.utils.data_options(jQuery(this)));
+
+           jQuery(this).toggleClass('active');
+           $target.data('ns-collapse-trigger', jQuery(this)).toggleClass('active');
+           $target.slideToggle(options);
+
+
+       });
+   }
+
+};
+
+jQuery(function(){
+    NS.collapse.init();
+});

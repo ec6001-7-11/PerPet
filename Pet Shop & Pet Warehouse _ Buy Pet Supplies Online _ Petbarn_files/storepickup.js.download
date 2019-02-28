@@ -1,0 +1,3003 @@
+var PET = PET || {};
+(function ($) {
+    "use strict";
+
+    PET.storepickup = {
+        storename : '',
+        isSelectPickUpStore:false,
+        baseUrl: '',
+        isMobile: false,
+        lat: null,
+        lang: null,
+        map: null,
+        nearest: null,
+        markers: [],
+        stocksInfo: null,
+        init: function (u, e1,c1,e2,c2) {
+            this.storename =   NS.cookie.read('storeNameHD') ? NS.cookie.read('storeNameHD') : $(".cart").data('geo-storename');
+            this.isSelectPickUpStore = $('.wr-click-and-collect-option').data('store');
+            this.baseUrl = u;
+            this.autocomplete(e1, c1);
+            this.autocompleteHD(e2, c2);
+            this.bindElement();
+            this.optionClicked();
+        },
+        bindElement: function () {
+            var self = this;
+            //paypal
+            $('.disable-checkout-paypal').hide();
+            $('.enable-checkout-paypal').show();
+            $( "#suggestor" ).keyup(function() {
+                if($(this).val() != ''){
+                    $('#reset_btn').show();
+                }else{
+                    $('#reset_btn').hide();
+                }
+            });
+
+            //autocomplete
+            $( "#suggestorHD" ).keyup(function() {
+                if($(this).val() != ''){
+                    $('#reset_btn_HD').show();
+                }else{
+                    $('#reset_btn_HD').hide();
+                }
+            });
+            $('#reset_btn').click(function () {
+                $('#suggestor').val('').focus();
+            });
+            $('#reset_btn_HD').click(function () {
+                $('#suggestorHD').val('').focus();
+            });
+
+            //select store
+            $('#stores').on('click', '.store-select', function () {
+                var storeId = $(this).data('id');
+                var nameStore = $(this).find('.name h4').html();
+                self.selectStore(storeId,nameStore);
+            });
+
+            //box alert no select postcode
+            $('body').on('click' , '.checkout-cart-index #cboxClose' , function (e) {
+                $(".cc-error-container").hide();
+                $(".hd-error-container").hide();
+            });
+
+            //prevent click event of link viewmore infor store
+            $('#stores').on('click' , 'a.view-store-details' , function (e) {
+               e.stopPropagation();
+            });
+
+            //click change pickup store
+            $('body').on('click' , '.change-store-pick-up' , function (e) {
+                e.preventDefault();
+                if($('#stores').hasClass('active')){
+                    self.hiddenInputSearchStore();
+                    self.hiddenListStore();
+                }else{
+                    self.displayInputSearchStore();
+                    self.displayListStore();
+                }
+
+                return false;
+            });
+
+        },
+        ajaxFailure: function () {
+            return function (jqXHR) {
+                if (jqXHR.status === 403) {
+                    location.reload();
+                } else {
+                    $('#cart-please-wait,.summary-please-wait').hide();
+                }
+            }
+        },
+        autocomplete: function (e, c) {
+            var self = this;
+            new Autocomplete(e, {
+                serviceUrl: this.baseUrl + 'store-finder/ajax/searchbycountry?countrycode=AU',
+                onSelect: function (v, d) {
+                    $('#reset_btn').show();
+                    if (d.length) {
+                        if(d[0].postcode){
+                            self.selectPostCode(d[0].postcode, d[0].countrycode, d[0].id,'');
+                        }
+                    }
+                },
+                onLoadStart: function () {
+                    self.autocompleteStart();
+                },
+                onLoadComplete: function () {
+                    self.autocompleteEnd();
+                },
+                container: c
+            });
+        },
+        autocompleteHD: function (e, c) {
+            var self = this;
+            new Autocomplete(e, {
+                serviceUrl: this.baseUrl + 'store-finder/ajax/searchbycountry?countrycode=AU',
+                onSelect: function (v, d) {
+                    if (d.length) {
+                        if(d[0].postcode){
+                            self.storename = d[0].suburb + ',' + d[0].statecode;
+                            self.selectPostCodeHD(d[0].postcode, d[0].countrycode, d[0].id);
+                        }
+                    }
+                },
+                onLoadStart: function () {
+                    self.autocompleteStartHD();
+                },
+                onLoadComplete: function () {
+                    self.autocompleteEndHD();
+                },
+                container: c
+            });
+        },
+        preLoadOption: function (pc1,pc2,c, id) {
+            var self = this;
+            if(NS.cookie.read('cartdeliveryoptions')=="CC"){
+                //none
+                $("#click-and-collect-option").prop('checked', true);
+                $('.recurring-option-container').hide();
+                var myStoreData = JSON.parse(decodeURIComponent(NS.cookie.read('myStoreData')));
+                self.addMarkerOutOfStockCC();
+                $('.item-msg').html('');
+
+
+                if ($('.name-store-pick-up').length) {
+                    $('#cart-please-wait,.summary-please-wait').show();
+                    $.ajax({
+                        url: window.location.origin + '/store-pickup/ajax/load',
+                        dataType: 'json',
+                        type: 'get',
+                        data: {pc: myStoreData.storePostcode, ci: 'AU', id: myStoreData.locationId},
+                        success: function (data) {
+                            $('#cart-please-wait,.summary-please-wait').hide();
+                            var removeOutOfStockMarker = true;
+
+                            if (data && (typeof data === 'object')) {
+                                if (data.hasOwnProperty('stocks') && data.stocks) {
+                                    $.each(data.stocks, function(storeLocationId, storeData) {
+                                        if (storeLocationId == myStoreData.storeLocationId) {
+                                            $.each(storeData.data, function(itemSku, stockStatus) {
+
+                                                $('.item-msg.' + itemSku).each(function () {
+                                                    if (stockStatus.in_stocks) {
+                                                        $(this).addClass('in-stock-label').removeClass('out-stock-label').html('In stock');
+                                                        $('.item-msg.' + itemSku+'.free-product').addClass('in-stock-label').removeClass('out-stock-label').html('Free');
+                                                    } else {
+                                                        $(this).addClass('out-stock-label').removeClass('in-stock-label').html('Not available at ' + storeData.name);
+                                                        removeOutOfStockMarker = false;
+                                                    }
+                                                });
+                                            });
+                                        }
+
+                                    });
+                                }
+                            }
+
+                            if (removeOutOfStockMarker) {
+                                self.removeMarkerOutOfStockCC();
+                            }
+                        },
+                        error: function(){
+                            this.ajaxFailure();
+                        }
+                    });
+                }
+            }
+            else if(NS.cookie.read('cartdeliveryoptions')=="HD"){
+                if(pc2!=""){
+                    this.selectPostCodeHD(pc2, c, id);
+                }else{
+                    var pc2 = $(".cart").data('geo-postcode');
+                    if(pc2){
+                        this.selectPostCodeHD(pc2, c, id);
+                    }else{
+                        $("#home-delivery-option").prop('checked', true);
+                    }
+                }
+            }
+            else if(pc1!=""){
+                //none
+                $("#click-and-collect-option").prop('checked', true);
+                $('.recurring-option-container').hide();
+            }
+            else if(pc2!=""){
+                this.selectPostCodeHD(pc2, c, id);
+            }else{
+                var pc2 = $(".cart").data('geo-postcode');
+                if(pc2){
+                    this.selectPostCodeHD(pc2, c, id);
+                }else{
+                    $("#home-delivery-option").prop('checked', true);
+                }
+
+            }
+        },
+        optionClicked: function () {
+            var self = this;
+
+            $('body').on('click' , '.cart-area .deals .option-shipping.wr-home-delivery-option' , function (e) {
+                if($(this).hasClass('selecting')){
+                    return false;
+                }
+                NS.cookie.create('cartdeliveryoptions', 'HD');
+                $('.item-msg').html('');
+                self.removeMarkerOutOfStockCC();
+                self.setHomeDelivery();
+
+                var pc2 = NS.cookie.read('postcodeHD');
+                var id = NS.cookie.read('locationId');
+                if(pc2){
+                    self.selectPostCodeHD(pc2, 'AU', id);
+                }else{
+                    //check repeat delivery not available with CC, reload to get error message
+                    if($('.recurring-interval-select').val() != 0 && $('.cart ul.messages li.error-msg').length == 1){
+                        window.location.reload();
+                    }
+                }
+            });
+            $('body').on('click' , '.cart-area .deals .option-shipping.content-click-collect' , function (e) {
+                if($(this).hasClass('selecting')){
+                    return false;
+                }
+                if(self.isSelectPickUpStore){
+                    $('.none-change-store-pick-up').addClass('change-store-pick-up');
+                }
+                NS.cookie.create('cartdeliveryoptions', 'CC');
+                $('.item-msg').html('');
+                self.removeMarkerOutOfStockHD();
+                self.setClickAndCollect();
+
+                var pc1 = NS.cookie.read('postcode');
+                var id = NS.cookie.read('locationId');
+                if(pc1){
+                    self.selectPostCode(pc1, 'AU', id,'');
+                }
+
+                window.is_repeat=0;
+                $('select.recurring-interval-select').each(
+                    function(){
+                        if($(this).val()!='0'){
+                            $(this).val('0');
+                            window.is_repeat=1;
+                        }
+                    }
+                );
+                if(window.is_repeat==1){
+                    var cartForm = $("form[name='mycart']");
+                    var cartData = cartForm.serializeArray();
+
+                    $.ajax({
+                        url: "/recurring_checkout/ajax/updatePost",
+                        type: "post",
+                        data: cartData,
+                        success: function (data) {
+                            var obj=$.parseJSON(data);
+                            if (!obj.error) {
+
+                            } else {
+                                alert(obj.error);
+                            }
+                        }
+                    });
+                }
+            });
+        },
+        selectPostCode: function (pc, c, id,type) {
+            var self = this;
+            $('#cart-please-wait,.summary-please-wait').show();
+            $.ajax({
+                url: window.location.origin + '/store-pickup/ajax/load',
+                dataType: 'json',
+                type: 'get',
+                data: {pc: pc, ci: c, id: id},
+                success: function (data) {
+                    $('#cart-please-wait,.summary-please-wait').hide();
+                    $('.wr-click-and-collect-option,.content-click-collect').addClass('expand');
+                    if($('#suggestor').val()!='No result found'){
+                        NS.cookie.create('searchtextfull', jQuery('#suggestor').val());
+                    }
+                    NS.cookie.create('postcode', pc);
+                    NS.cookie.create('locationId', id);
+
+                    if (!data.error) {
+                        PET.storepickup.stocksInfo = data.stocks;
+                        self.loadStores(data, pc,type);
+                    } else {
+                        if (data.listItemNotAvailable) {
+                            self.checkAvailableForClickAndCollect(data.listItemNotAvailable);
+                        } else {
+                            $('#stores').html('<span class="no-store-found">' + data.msg + '</span>').show();
+                        }
+                        self.addMarkerOutOfStockCC();
+                    }
+                },
+                error: function(){
+                    this.ajaxFailure();
+                }
+            });
+        },
+        selectPostCodeHD: function (pc, c, id) {
+            var self = this;
+            if (NS.cookie.read('paypalAddress')) {
+                var paypalAddress = unescape(NS.cookie.read('paypalAddress'));
+                var deliveryAddress = paypalAddress.split(',');
+                pc = deliveryAddress[0];
+                var suburb = deliveryAddress[1].replace("+"," ");
+                var city = deliveryAddress[2].replace("+"," ");
+                var countryCode = deliveryAddress[3].replace("+"," ");
+                var searchtextfullHD = pc + " " + suburb + " " + city + " " + countryCode;
+                searchtextfullHD = searchtextfullHD.replace("+"," ");
+                var storeNameHD = suburb + "," + city;
+                self.storename = storeNameHD;
+                $('#suggestorHD').val(searchtextfullHD);
+                $('.home-delivery-store-name').html('to <u>'+ storeNameHD +'</u>');
+                NS.cookie.create('postcodeHD', pc);
+                NS.cookie.create('searchtextfullHD', searchtextfullHD);
+                NS.cookie.create('storeNameHD', storeNameHD);
+            }
+            $('#cart-please-wait,.summary-please-wait').show();
+            $.ajax({
+                url: window.location.origin + '/store-pickup/ajax/checkHDStock',
+                dataType: 'json',
+                type: 'get',
+                data: {pc: pc},
+                success: function (data) {
+                    $('#cart-please-wait,.summary-please-wait').hide();
+                    if(data.success){
+                        self.clearStoreWhenGoToHD();
+                        if($('#suggestorHD').val()!='No result found'){
+                            NS.cookie.create('searchtextfullHD', $('#suggestorHD').val());
+                        }
+                        NS.cookie.create('postcodeHD', pc);
+                        NS.cookie.create('storeNameHD', self.storename);
+                        NS.cookie.create('cartdeliveryoptions','HD');
+                        $('.home-delivery-store-name').html('to <u>'+self.storename +'</u>');
+
+                        //update for PDP
+                        NS.cookie.create('myStoreHDData',JSON.stringify({
+                            'postcode' : pc,
+                            'storecode' : '',
+                            'storeName': self.storename,
+                            'fulltext' :  NS.cookie.read('searchtextfullHD')
+                        }));
+
+                        var canCheckout = true;
+                        //check avialable
+                        for(var sku in data.availableHD){
+                            if(!data.availableHD[sku]){
+                                canCheckout = false;
+                                $('#shopping-cart-table .'+sku).addClass('out-stock-label').removeClass('in-stock-label').html('Not available for Home Delivery');
+                            }
+                        }
+                        //check stock
+                        for(var sku in data.stocks){
+                            if(data.stocks[sku]){
+                                $('#shopping-cart-table .'+sku).addClass('in-stock-label').removeClass('out-stock-label').html('In stock');
+                                $('#shopping-cart-table .'+sku+'.free-product').addClass('in-stock-label').removeClass('out-stock-label').html('Free');
+                            }else{
+                                canCheckout = false;
+                                $('#shopping-cart-table .'+sku).addClass('out-stock-label').removeClass('in-stock-label').html('Currently Out Of Stock for your selected postcode');
+                            }
+                        }
+                        if(!canCheckout){
+                            self.addMarkerOutOfStockHD();
+                        }else{
+                            self.removeMarkerOutOfStockHD();
+                        }
+                        //check repeat delivery not available with CC, reload to get error message
+                        if(window.is_repeat == 1){
+                            window.location.reload();
+                        }
+
+                    }else{
+
+                    }
+                },
+                error: function(){
+                    this.ajaxFailure();
+                }
+            });
+        },
+        loadStores: function (data, pc,type) {
+            this.nearest = null;
+            this.clearMarkers();
+            if (!data.error && data.stores && data.stores.length > 0) {
+
+                var content = [], stores = [], storesData = data.stores,distances= data.distances, len = storesData.length;
+                if (Math.max(document.documentElement.clientWidth, window.innerWidth || 0) <= 640) {
+                    this.isMobile = true; //is mobile
+                }
+                var center = new google.maps.LatLng(this.lat, this.lang);
+                var spherical = google.maps.geometry.spherical;
+                var isMobile = this.isMobile;
+                while (len--) {
+                    var d = storesData[len];
+                    var sortLatLng = new google.maps.LatLng(d.latitude, d.longitude);
+                    var distance = spherical.computeDistanceBetween(sortLatLng, center);
+                    stores.push([len, Math.round(distance / 10), sortLatLng]);
+                }
+                stores.sort(function (a, b) {
+                    return a[1] - b[1];
+                });
+                len = storesData.length;
+                var infoWindow = new google.maps.InfoWindow();
+                for(var i=0;i< len; i++) {
+                    var s = storesData[i];
+                    var d = distances[s.location_id];
+                    content.push(this.infoBox(s,d));
+                }
+
+                if ($('#stores').hasClass('slick-initialized')) {
+                    $('#stores').removeClass('slick-initialized slick-slider');
+                    $('#stores').html('');
+                }
+
+                $('#stores').html(content.join('')).addClass('active');
+                this.addSliderStores();
+
+                this.displayInputSearchStore();
+                this.displayListStore();
+
+                this.removeMarkerOutOfStockCC();
+            }
+        },
+        selectStore: function (storeId,nameStore) {
+            var stocksInfo = PET.storepickup.stocksInfo;
+            if (stocksInfo) {
+                var numberOfOutStockItems = 0;
+                for (var sku in stocksInfo[storeId]['data']) {
+                    if (stocksInfo[storeId]['data'][sku]['in_stocks'] > 0) {
+                        $('#shopping-cart-table .' + sku).addClass('in-stock-label').removeClass('out-stock-label').html('In stock');
+                    } else {
+                        $('#shopping-cart-table .' + sku).addClass('out-stock-label').removeClass('in-stock-label').html('Not available at ' + stocksInfo[storeId]['name']);
+                        numberOfOutStockItems++;
+                        if($('#shopping-cart-table .' + sku + '.free-product').length) {
+                            numberOfOutStockItems--;
+                        }
+                    }
+                }
+                if (numberOfOutStockItems === 0) {
+                    var self = this;
+                    $('#cart-please-wait,.summary-please-wait').show();
+                    $.ajax({
+                        url: this.baseUrl + 'store-pickup/ajax/selectStore',
+                        dataType: 'json',
+                        type: 'get',
+                        data: {s: storeId},
+                        success: function (data) {
+                            if(!data.error){
+                                self.hiddenInputSearchStore();
+                                self.hiddenListStore();
+                                self.isSelectPickUpStore = true;
+                                var htmlStorePickup = '<h3 class="title-method">CLICK AND COLLECT</h3><p class="description name-store-pick-up">At '+nameStore+' </p>'
+                                    +'<p class="description none-change-store-pick-up change-store-pick-up"><u>Change store</u></p>';
+                                $('.wr-click-and-collect-option .content-method-shipping').html(htmlStorePickup);
+                                $('.wr-click-and-collect-option,.content-click-collect').removeClass('expand');
+                                self.removeMarkerOutOfStockCC();
+                                $('#cart-please-wait,.summary-please-wait').hide();
+                                window.location.reload();
+
+                            }
+                        },
+                        error: function(){
+                            this.ajaxFailure();
+                        }
+                    });
+                } else {
+                    this.addMarkerOutOfStockCC();
+                }
+            }
+        },
+        infoBox: function (s,d) {
+            if(s.street_number == 0){
+                s.street_number = "";
+            }
+            var street = [s.street_number + ' ' + s.street_name, s.postcode, s.state];
+            return '<div class="store store-select" data-id="' + s.location_id + '">' +
+                '<div class="name"><h4>' + s.name + '</h4></div>' +
+                '<div class="store-distance-km">'+d+'<span>km away</span></div>' +
+                '<a class="view-store-details"><span>store details</span>' +
+                '<div class="tooltips-detail">' +
+                '<div class="heading">Petbarn ' + s.name + '</div>' +
+                '<div class="address">' + street.join(' ') + '</div>' +
+                '<div class="contact">' + s.phone + '</div>' +
+                '</div>' +
+                '</a>'+
+                '</div>';
+        },
+        addSliderStores: function(){
+            if ($(window).width() > 640) {
+                var $element = jQuery('.slider-store-pickup');
+
+                $element.slick({
+                    dots: false,
+                    infinite: false,
+                    slidesToShow: 3,
+                    slidesToScroll: 3,
+                    nextArrow: '<a href="#" class="pr-car-nav arrow-next slick-arrow " style="display: block;"></a>',
+                    prevArrow: '<a href="#" class="pr-car-nav arrow-prev slick-arrow" style="display: block;"></a>'
+                });
+
+                if ($('.slick-track').length > 0){
+                    /*
+                    * reason : tooltip inside slider overlap
+                    * solution : Push location detail to tooltips outside slider
+                    */
+                    $('.option-shipping.content-click-collect').on( "mouseover", ".view-store-details",function() {
+                        var _this = jQuery(this);
+
+                        var tooltipClone = _this.find('.tooltips-detail').clone();
+
+                        $('.tooltip-detail-location').html(tooltipClone);
+
+                        $('.tooltip-detail-location').css({
+                            display: 'inline-block',
+                            left: _this.closest('.slick-track').position().left + _this.position().left + "px"
+                        });
+
+                    }).on( "mouseout", function() {
+                        $('.tooltip-detail-location').find('.tooltips-detail').remove();
+                        $('.tooltip-detail-location').removeAttr("style");
+
+                    });
+                }
+
+            }
+        },
+        setClickAndCollect: function(){
+            $(".content-click-collect").addClass('active').addClass('selecting').removeClass('visited');
+            $(".wr-home-delivery-option").addClass('visited').removeClass('active').removeClass('selecting');
+            $("#click-and-collect-option").prop('checked', true);
+            $('.option-shipping.content-click-collect').removeClass('choice');
+            $('.option-shipping.wr-home-delivery-option').removeClass('choice');
+            $('.recurring-option-container').hide();
+        },
+        setHomeDelivery: function(){
+            $(".wr-home-delivery-option").addClass('active').addClass('selecting').removeClass('visited');
+            $(".content-click-collect").addClass('visited').removeClass('active').removeClass('selecting');
+            $("#home-delivery-option").prop('checked', true);
+            $('.option-shipping.content-click-collect').removeClass('choice');
+            $('.option-shipping.wr-home-delivery-option').removeClass('choice');
+            $('.recurring-option-container').show();
+
+            //clear store on desktop
+            if ($('#stores').hasClass('slick-initialized')) {
+                $('#stores').removeClass('active slick-initialized slick-slider hidden');
+            }
+            //mobile
+            if ($('#stores').hasClass('active')) {
+                $('#stores').removeClass('active');
+            }
+            $('#stores').html('');
+        },
+        autocompleteStart: function () {
+            $('#suggestor-box').addClass('loading');
+            $('#reset_btn').hide();
+        },
+        autocompleteEnd: function () {
+            $('#suggestor-box').removeClass('loading');
+            $('#reset_btn').show();
+        },
+        autocompleteStartHD: function () {
+            $('.suggestor-box-HD').addClass('loading');
+            $('#reset_btn_HD').hide();
+        },
+        autocompleteEndHD: function () {
+            $('.suggestor-box-HD').removeClass('loading');
+            $('#reset_btn_HD').show();
+        },
+        clearMarkers: function () {
+            var i = this.markers.length;
+            while (i--) {
+                this.markers[i].setMap(null);
+            }
+        },
+        continueCheckount: function (checkoutUrl) {
+            if($(".content-click-collect").hasClass('active') && !this.isSelectPickUpStore) {
+                $(".cc-error-container").show();
+                $.colorbox({opacity: 0.25, inline:true, href: ('.cc-error-container') , onClosed:function () {
+                    $(".cc-error-container").hide();
+                }} );
+            } else if($(".content-click-collect").hasClass('active') && this.isSelectPickUpStore) {
+                window.location = checkoutUrl;
+            } else if($(".wr-home-delivery-option").hasClass('active') && NS.cookie.read('postcodeHD') == null) {
+                $(".hd-error-container").show();
+                jQuery.colorbox({opacity: 0.25, inline:true, href: ('.hd-error-container') , onClosed:function () {
+                    $(".hd-error-container").hide();
+                }} );
+            }else if($(".wr-home-delivery-option").hasClass('active') && NS.cookie.read('postcodeHD') != null) {
+                window.location = checkoutUrl;
+            }
+        },
+        checkAvailableForClickAndCollect: function (listItemNotAvailable) {
+            for(var i = 0;i< listItemNotAvailable.length; i++ ){
+                $('#shopping-cart-table .'+listItemNotAvailable[i]).addClass('out-stock-label').removeClass('in-stock-label').html('Not available for Click & Collect');
+            }
+            $('#stores').html('').removeClass('active');
+        },
+        clearStoreWhenGoToHD: function () {
+            var self = this;
+            self.isSelectPickUpStore = false;
+            var htmlStorePickup = '<h3 class="title-method">CLICK AND COLLECT</h3><p class="description">In store</p>';
+            $('.wr-click-and-collect-option .content-method-shipping').html(htmlStorePickup);
+        },
+
+        addMarkerOutOfStockHD: function(){
+            $('.option-shipping.wr-home-delivery-option').addClass('choice');
+            $('.option-shipping.content-click-collect').removeClass('choice');
+            $("#home-delivery-option").prop('checked', true);
+            $('.btn-proceed-checkout').attr('disabled','disabled').addClass('no-checkout');
+            $('.disable-checkout-paypal').show();
+            $('.enable-checkout-paypal').hide();
+        },
+        removeMarkerOutOfStockHD: function(){
+            $('.option-shipping.wr-home-delivery-option').removeClass('choice');
+            $('.option-shipping.content-click-collect').removeClass('choice');
+            $("#home-delivery-option").prop('checked', true);
+            $('.btn-proceed-checkout').removeAttr('disabled').removeClass('no-checkout');
+            $('.disable-checkout-paypal').hide();
+            $('.enable-checkout-paypal').show();
+        },
+        addMarkerOutOfStockCC: function(){
+            $('.option-shipping.content-click-collect').addClass('choice');
+            $('.option-shipping.wr-home-delivery-option').removeClass('choice');
+            $("#click-and-collect-option").prop('checked', true);
+            $('.btn-proceed-checkout').attr('disabled','disabled').addClass('no-checkout');
+            $('.disable-checkout-paypal').show();
+            $('.enable-checkout-paypal').hide();
+        },
+        removeMarkerOutOfStockCC: function(){
+            $('.option-shipping.content-click-collect').removeClass('choice');
+            $('.option-shipping.wr-home-delivery-option').removeClass('choice');
+            $("#click-and-collect-option").prop('checked', true);
+            $('.btn-proceed-checkout').removeAttr('disabled').removeClass('no-checkout');
+            $('.disable-checkout-paypal').hide();
+            $('.enable-checkout-paypal').show();
+        },
+        hiddenInputSearchStore: function(){
+            $('.search #suggestor-box').hide();
+        },
+        displayInputSearchStore: function(){
+            $('.search #suggestor-box').show();
+        },
+        displayListStore: function(){
+            $('#stores').removeClass("hidden").addClass('active');
+            $('.content-click-collect').addClass('expand');
+            $('.store-pickup').show();
+        },
+        hiddenListStore: function(){
+            $('#stores').removeClass("active").addClass('hidden');
+            $('.store-pickup').hide();
+        },
+
+    }
+
+    PET.storepickupproduct = {
+        baseUrl: '',
+        isMobile: false,
+        lat: null,
+        lang: null,
+        map: null,
+        nearest: null,
+        markers: [],
+        showAllAtOnce: false, // Set to true if all stores should be listed on "SHOW MORE STORES"
+        storestoShowPerResults: 3, // No of stores that should show per request
+        nextStoreStartCount: 0,
+        commerceConnect: '',
+
+
+        init: function (u, e, c) {
+            this.baseUrl = u;
+            this.autocomplete(e, c);
+            this.bindElement();
+            this.initView();
+        },
+        initQtyStepper: function (productSku) {
+            var sku = productSku;
+            jQuery('.qty-sub , .qty-plus').off();
+
+            jQuery('.qty-sub').on('click', function () {
+                PET.storepickupproduct.changeQty('sub',jQuery('#qty').val());
+                //PET.StoreSearch.checkStoreStockQtyChenge(sku, jQuery('#qty').val());
+                PET.storepickup.deliveryoption.checkStoreStockQtyChange(sku,function () {
+                });
+            });
+
+            jQuery('.qty-plus').on('click', function () {
+                PET.storepickupproduct.changeQty('add',jQuery('#qty').val());
+                //PET.StoreSearch.checkStoreStockQtyChenge(sku, jQuery('#qty').val());
+
+                PET.storepickup.deliveryoption.checkStoreStockQtyChange(sku, function () {
+                });
+
+            });
+
+            jQuery('body').on('keypress', '.qty', function (e) {
+                if (e.which != 8 && e.which != 0 && (e.which < 48 || e.which > 57)) {
+                    return false;
+                }
+            });
+
+            jQuery('.product-qty .qty-wrapper #qty').on('keyup', function (e) {
+                if (e.which != 8 && e.which != 0 && (e.which < 48 || e.which > 57)) {
+                    return false;
+                } 
+                if(NS.cookie.read('cartdeliveryoptions')=="HD" || (NS.cookie.read('cartdeliveryoptions') == null)) {
+                     PET.storepickupgroupproduct.renderProductVariants();
+                }
+                PET.StoreSearch.checkStoreStockQtyChenge(sku, jQuery('#qty').val());
+                PET.storepickup.deliveryoption.checkStoreStockQtyChange(sku, function () {
+                });
+            });
+
+        },
+        initView: function () {
+            var opt = {
+                zoom: 10,
+                mapTypeId: google.maps.MapTypeId.ROADMAP
+            };
+            opt['center'] = new google.maps.LatLng(-33.86830000, 151.21110000);
+            this.map = new google.maps.Map(document.getElementById('pickup-map'), opt);
+        },
+        bindElement: function () {
+
+            $('body').off('click', '.check-store-msg');
+            $('body').off('click', '.st-loc-title');
+
+            var self = this;
+            $('#stores').on('click', '.store-select', function () {
+                var storeId = $(this).data('id');
+                self.selectStore(storeId);
+            });
+            $('#cc-banner-template').appendTo('#promo-banner-container').show();
+            $('.selected-store').on('click', '.store-clear', function () {
+                self.clearStore();
+            });
+            $('.store-pickup-wrapper').on('click', '.more-details', function () {
+                var e = $(this);
+                e.hasClass('open') ? e.removeClass('open') : e.addClass('open');
+            });
+            $('#reset_btn').click(function () {
+                $('#suggestor').val('').focus();
+            });
+
+
+        },
+        changeQty : function(action, val){
+            if(val > 1 && action === 'sub'){
+                jQuery('#qty').val( parseInt(val)-1 );
+
+                if(NS.cookie.read('cartdeliveryoptions')=="HD" || (NS.cookie.read('cartdeliveryoptions') == null)) {
+                    if(!jQuery('.add-to-cart').is(":visible"))
+                    {
+                        PET.storepickupgroupproduct.renderProductVariants();
+                    }
+                }
+            } else if(action === 'add'){
+                jQuery('#qty').val( parseInt(val)+1 );
+
+                if(NS.cookie.read('cartdeliveryoptions')=="HD" || (NS.cookie.read('cartdeliveryoptions') == null)) {
+                    if(!jQuery('.petbarn-out-of-stock').is(":visible"))
+                    {
+                        PET.storepickupgroupproduct.renderProductVariants();
+                    }
+                }
+            }
+        },
+        showMap: function () {
+            $('#pickup-map-popup-background').show();
+            $('#pickup-map-popup').show();
+            google.maps.event.trigger(this.map, 'resize');
+            if (this.nearest) {
+                this.map.panTo(this.nearest);
+            }
+        },
+        closeMap: function () {
+            $('#pickup-map-popup-background').hide();
+            $('#pickup-map-popup').hide();
+        },
+        ajaxFailure: function () {
+            //jQuery("#product-delivery-please-wait").show(0).delay(1000).hide(0);
+            PET.storepickup.deliveryoption.hideLoading();
+            return function (jqXHR) {
+                if (jqXHR.status === 403) {
+                    location.reload();
+                } else {
+                    $('#cart-please-wait,.summary-please-wait').hide();
+                }
+            }
+        },
+        autocomplete: function (e, c) {
+            var self = this;
+            var selectedVal = jQuery('#suggestor').val();
+            new Autocomplete(e, {
+                serviceUrl: window.location.origin + '/store-finder/ajax/searchbycountry?countrycode=AU/' + selectedVal,
+                onSelect: function (v, d) {
+                    $('#reset_btn').show();
+                    if (d.length) {
+                        self.lat = d[0].latitude;
+                        self.lang = d[0].longitude;
+                        var qty = ((jQuery('.product-qty .qty-wrapper #qty').length > 0) ?jQuery('.product-qty .qty-wrapper #qty').val() : 1);
+                        var productQty = (jQuery.isNumeric(qty)?qty:1);
+                        self.selectPostCode(d[0].id, '', '', productQty);
+                    }
+                },
+                onLoadStart: function () {
+                    self.autocompleteStart();
+                },
+                onLoadComplete: function () {
+                    self.autocompleteEnd();
+                },
+                container: c
+            });
+        },
+        loadDeliveryOptions: function (url, productId, sku, maxWeightLimit, productWeight, notAvailableText, currentQty, commerceConnect) {
+            commerceConnect = PET.storepickupproduct.commerceConnect;
+            var isStockCommerceConnect = 0;
+            var qtyStockCommerceConnect = 0;
+            if(commerceConnect != '' && typeof commerceConnect != 'undefined') {
+                var pcommerceConnect = JSON.parse(commerceConnect);
+                isStockCommerceConnect = pcommerceConnect.isStockCommerceConnect;
+                qtyStockCommerceConnect = pcommerceConnect.qtyStockCommerceConnect;
+            }
+            PET.storepickup.deliveryoption.showLoading();
+            var self = this;
+            var SKUs = PET.storepickupgroupproduct.getListSkus();
+            if(typeof (productId) == 'undefined' ||productId==''){
+                productId = jQuery('#group_product option:first-child').val();
+            }
+
+            $.ajax({
+                url: url,
+                dataType: 'json',
+                type: 'get',
+                data: {productId: productId, qty: currentQty , 'isStockCommerceConnect' : isStockCommerceConnect , qtyStockCommerceConnect : qtyStockCommerceConnect, skus : SKUs},
+                success: function (data) {
+
+                    var response = data.list;
+                    var locationId = data.locationId;
+                    var isSale = data.sale || false;
+                    var currentLocation = data.currentLocation;
+
+                    if(currentLocation !=null){
+                        NS.cookie.create('currentLocation',JSON.stringify({
+                            'postcode' : currentLocation.postcode,
+                            'suburb' : currentLocation.city,
+                            'ipAddress': currentLocation.ipAddress,
+                            'lookup' :  currentLocation.lookup
+                        }));
+                    }
+                    
+                    if (jQuery('.group-product-sale').length) {
+                        jQuery('.group-product-sale').removeClass('show');
+                        if (isSale) {
+                            jQuery('.group-product-sale').addClass('show');
+                        }
+                    }
+                    
+                    jQuery('#product-delivery-options').html(jQuery.parseHTML(response)).hide();
+                    /*  setTimeout(function () {
+                          PET.storepickup.deliveryoption.init(data, notAvailableText);
+                      },10);*/
+                    PET.storepickup.deliveryoption.init(data, notAvailableText);
+                    self.initQtyStepper(sku);
+                    pickUpInstore = jQuery('#product-delivery-options .pickup-in-store .icon.active').length ? true : false;
+
+                    //PET.StoreSearch.searchAutoLoad(locationId, sku);
+                    self.checkWeight(maxWeightLimit, productWeight);
+                    if (jQuery('#recurring_delivery').is(":checked")) {
+                        jQuery('.product-delivery').addClass('is_recurring');
+                    }
+                    if (jQuery('#one_delivery').is(":checked")) {
+                        jQuery('.product-delivery').removeClass('is_recurring');
+                    }
+
+                    if (NS.cookie.read('searchtextfull') != null) {
+                        jQuery('#close-search-btn').show();
+                    }
+                    else {
+                        jQuery("#search-stores-btn").attr("disabled", true);
+                        jQuery('#close-search-btn').hide();
+                    }
+                    PET.storepickupproduct.toggles.toggleDelivery(notAvailableText);
+
+                    //add sku to add to cart button
+                    $('#product-addtocart-button').attr('data-productsku',sku);
+                    PET.storepickup.deliveryoption.hideLoading();
+                    if (NS.cookie.read('cartdeliveryoptions') == "HD" || (NS.cookie.read('cartdeliveryoptions') == null)) {
+                        var allVariants = data.allProductVariants;
+                        var currentVariant = data.productVariant;
+
+                        PET.storepickupgroupproduct.renderProductVariants(allVariants,null,currentVariant);
+                    } else {
+                        PET.storepickupgroupproduct.selectFirstOption();
+                    }
+                    jQuery.colorbox.resize();
+                },
+                error: function(){
+                    this.ajaxFailure();
+                }
+            });
+        },
+        loadDeliveryOptionsInQuickview: function (url, productId, sku, maxWeightLimit, productWeight, parentProductUrl, notAvailableText) {
+            var self = this;
+            $.ajax({
+                url: url,
+                dataType: 'json',
+                type: 'get',
+                data: {productId: productId},
+                success: function (data) {
+                    var response = data.list;
+                    var locationId = data.locationId;
+                    var notAvailableText = data.notAvailableText;
+                    var isSale = data.sale || false;
+                    var currentLocation = data.currentLocation;
+
+                    if(currentLocation !=null){
+                        NS.cookie.create('currentLocation',JSON.stringify({
+                            'postcode' : currentLocation.postcode,
+                            'suburb' : currentLocation.city,
+                            'ipAddress': currentLocation.ipAddress,
+                            'lookup' :  currentLocation.lookup
+                        }));
+                    }
+                    
+                    if (jQuery('.group-product-sale').length) {
+                        jQuery('.group-product-sale').removeClass('show');
+                        if (isSale) {
+                            jQuery('.group-product-sale').addClass('show');
+                        }
+                    }
+                    
+                    parentProductUrl += '#pickup-in-store';
+                    jQuery('#quickview-delivery-options').html(jQuery.parseHTML(response)).hide();
+                    PET.storepickupproduct.toggles.toggleDeliveryQuickview(notAvailableText);
+                    //PET.StoreSearch.searchAutoLoad(locationId, sku);
+                    //self.checkWeight(maxWeightLimit, productWeight);
+                    if (jQuery('#recurring_delivery').is(":checked")) {
+                        jQuery('.product-delivery').addClass('is_recurring');
+                    }
+                    if (jQuery('#one_delivery').is(":checked")) {
+                        jQuery('.product-delivery').removeClass('is_recurring');
+                    }
+                    jQuery("#check-stock-availability").attr('href', parentProductUrl);
+
+                },
+                error: function(){
+                    this.ajaxFailure();
+                }
+            });
+        },
+        selectPostCode: function (id, nextElement, sku, qty) {
+            var self = this;
+            jQuery('#product-delivery-please-wait').show();
+            jQuery("#search-stores-btn").attr("disabled", false);
+            var productSku = jQuery('#product-sku').val();
+            var productQty = (jQuery.isNumeric(qty)?qty:1);
+            var maxWeightLimit = parseFloat(jQuery("#max-weight-limit").val());
+            var productWeight = parseFloat(jQuery("#product-weight").val());
+            PET.storepickupproduct.checkWeight(maxWeightLimit, productWeight);
+            if (sku != '') {
+                productSku = sku;
+            }
+            $('#cart-please-wait,.summary-please-wait').show();
+            $('#store-stock-results').show();
+            $.ajax({
+                url: window.location.origin + '/store-pickup/ajax/loadLocation',
+                dataType: 'json',
+                type: 'get',
+                data: {q: id, sku: productSku, qty: productQty},
+                success: function (data) {
+                    jQuery('#product-delivery-please-wait').hide();
+                    jQuery('#close-search-btn').show();
+                    jQuery('#location-id').val(id);
+                    jQuery('#search-text-full').val(jQuery('#suggestor').val());
+                    var response = data.list;
+                    NS.cookie.create('searchtextfull', jQuery('#suggestor').val());
+                    NS.cookie.create('locationId', id);
+
+                    // Response data to Obj
+                    var $jqResponse = $.parseHTML(response);
+                    var $storeStockResults = $('#store-stock-results');
+                    function displayNextStoreSet(type) { // next set of stores
+                        if (type == "all") { // Show all stores
+                            $storeStockResults.find('.location-list-ul').children('li').show().removeClass('store-store-hidden').addClass('store-store-visible');
+                            jQuery(".btn-view-more-stores").hide();
+                        } else { // Store stores step by step
+                            var $nextStoreSet = $storeStockResults.find('li').not(".store-visible").slice(PET.storepickupproduct.nextStoreStartCount, PET.storepickupproduct.storestoShowPerResults);
+                            $nextStoreSet.show().removeClass('store-hidden').addClass('store-visible');
+                            if (!$nextStoreSet.hasClass('store-in-stock') && !$storeStockResults.find("#location-list-ul").children("li").slice(0, PET.storepickupproduct.storestoShowPerResults).hasClass('store-in-stock')) {
+                                var $nearest = $storeStockResults.find('li.store-in-stock:first');
+                                if (!$nearest.find('.nearest-with-stock').length) {
+                                    $nearest.prepend('<span class="nearest-with-stock">nearest with stock</span>');
+                                }
+                                $nearest.show().removeClass('store-store-hidden').addClass('store-store-visible');
+                            }
+                        }
+
+                    }
+
+                    jQuery($jqResponse).find('.location-list-ul').children('li').each(function () { // Add classes to ajax response
+                        var $self = jQuery(this);
+                        var stockCount = $self.data('in-stock');
+                        $self.addClass('store-hidden');
+
+                        if (stockCount === 0) {
+                            $self.addClass('store-out-of-stock');
+                        } else {
+                            $self.addClass('store-in-stock');
+                        }
+                    });
+
+                    $storeStockResults.html($jqResponse);
+
+                    displayNextStoreSet("steps"); // Get first store set
+
+                    jQuery(".btn-view-more-stores").on('click', function (e) {
+                        e.preventDefault();
+                        if (PET.storepickupproduct.showAllAtOnce) {
+                            displayNextStoreSet("all");
+                        } else {
+                            displayNextStoreSet("steps");
+                        }
+                    });
+
+                    if((JSON.parse(Mage.Cookies.get('myStoreData')) != null) && (JSON.parse(Mage.Cookies.get('myStoreData')).hasOwnProperty('storeLocationId'))) {
+                        var storePickupUrl = jQuery('#set-my-store-url').val();
+                        var locationId = JSON.parse(Mage.Cookies.get('myStoreData')).storeLocationId;
+                        var itemStoreStock = jQuery('#item-stock-status-'+locationId).val();
+                        PET.StoreSearch.setMyStore(storePickupUrl, locationId, itemStoreStock);
+                        jQuery('#my-store-stock').val(itemStoreStock);
+                        NS.cookie.create('hasmystore', itemStoreStock);
+                    }
+                    jQuery.colorbox.resize();
+                },
+                error: function(){
+                    this.ajaxFailure();
+                }
+            });
+        },
+        autocompleteStart: function () {
+            $('#suggestor').addClass('loading');
+        },
+        autocompleteEnd: function () {
+            $('#suggestor').addClass('loading');
+        },
+        clearMarkers: function () {
+            var i = this.markers.length;
+            while (i--) {
+                this.markers[i].setMap(null);
+            }
+        },
+        loadStores: function (data, pc) {
+            this.nearest = null;
+            this.clearMarkers();
+            if (!data.error && data.stores && data.stores.length > 0) {
+
+                var content = [], stores = [], storesData = data.stores, len = storesData.length;
+                if (Math.max(document.documentElement.clientWidth, window.innerWidth || 0) <= 640) {
+                    this.isMobile = true; //is mobile
+                }
+                var center = new google.maps.LatLng(this.lat, this.lang);
+                var spherical = google.maps.geometry.spherical;
+                var isMobile = this.isMobile;
+                while (len--) {
+                    var d = storesData[len];
+                    var sortLatLng = new google.maps.LatLng(d.latitude, d.longitude);
+                    var distance = spherical.computeDistanceBetween(sortLatLng, center);
+                    stores.push([len, Math.round(distance / 10), sortLatLng]);
+                }
+                stores.sort(function (a, b) {
+                    return a[1] - b[1];
+                });
+                len = storesData.length;
+                var infoWindow = new google.maps.InfoWindow();
+                while (len--) {
+                    var s = storesData[stores[len][0]];
+                    if (isMobile) {
+                        content.push(this.infoBox(s));
+                    } else {
+                        var geo = new google.maps.LatLng(s.latitude, s.longitude);
+                        var marker = new google.maps.Marker({position: geo, map: this.map});
+                        this.markers.push(marker);
+                        var infoContent = this.mapInfoBox(s);
+                        google.maps.event.addListener(marker, 'click', function (infoWindow, infoContent, map, marker) {
+                            return function () {
+                                infoWindow.close();
+                                infoWindow.setContent(infoContent);
+                                infoWindow.open(map, marker);
+                            }
+                        }(infoWindow, infoContent, this.map, marker));
+                    }
+                }
+                if (isMobile) {
+                    $('#stores').html('<h4>Select a store</h4>' + content.join('')).show();
+                } else {
+                    this.nearest = stores[0][2];
+                    $('#stores').hide();
+                    $('#show-map').show();
+                }
+            } else {
+                $('#stores').html('<span class="no-store-found">' + data.msg + '</span>').show();
+                $('#show-map').hide();
+                PET.storepickup.seo.pushFailSelect(pc);
+            }
+        },
+        selectStore: function (storeId) {
+            this.closeMap();
+            $('#cart-please-wait,.summary-please-wait').show();
+            $.ajax({
+                url: window.location.origin + '/store-pickup/ajax/selectStore',
+                dataType: 'json',
+                type: 'get',
+                data: {s: storeId},
+                success: function (data) {
+                    location.reload();
+                },
+                error: function(){
+                    this.ajaxFailure();
+                }
+            });
+        },
+        clearStore: function () {
+            $('#cart-please-wait,.summary-please-wait').show();
+            $.ajax({
+                url: window.location.origin + '/store-pickup/ajax/clearStore',
+                dataType: 'json',
+                type: 'get',
+                success: function (data) {
+                    location.reload();
+                },
+                error: function(){
+                    this.ajaxFailure();
+                }
+            });
+        },
+        infoBox: function (s) {
+            var street = [s.street, s.postcode, s.region];
+            return '<div class="store">' +
+                '<div class="name"><h4>' + s.name + '</h4><button class="store-select" data-id="' + s.id + '">Select</button></div>' +
+                '<a class="more-details">more details</a>' +
+                '<div class="info">' +
+                '<div class="heading">Contact Details</div>' +
+                '<div class="address">' + street.join(' ') + '</div>' +
+                '<div class="contact">' + s.contact_phone + '</div>' +
+                (s.show_hours == 'Y' ?
+                    '<div class="oh"><div class="heading">Store Opening Hours</div>' +
+                    '<div class="days">' + s.oh + '</div>' : '') +
+                '</div></div>' +
+                '</div>';
+        },
+        mapInfoBox: function (s) {
+            var street = [s.street, s.postcode, s.region];
+            return '<div class="store">' +
+                '<div class="name"><h4>' + s.name + '</h4></div>' +
+                '<div class="info">' +
+                '<div class="heading">Contact Details</div>' +
+                '<div class="address">' + street.join(' ') + '</div>' +
+                '<div class="contact">' + s.contact_phone + '</div>' +
+                '</div>' +
+                '<button data-store=\'{"name":"' + s.name + '","postcode":"' + s.postcode + '"}\' onclick="PET.storepickup.selectStore(' + s.id + '); return false;" class="store-select">Select</button>' +
+                '<span class="loader"/>' +
+                '</div>';
+        },
+        setWeight: function (maxWeightLimit, productWeight) {
+            jQuery("#product-weight").val(productWeight);
+            this.checkWeight(maxWeightLimit, productWeight);
+        },
+        checkWeight: function (maxWeightLimit, productWeight) {
+            if (productWeight >= maxWeightLimit) {
+                jQuery("#heavy-item").show();
+            }
+            else {
+                jQuery("#heavy-item").hide();
+            }
+            //jQuery("#product-delivery-please-wait").show(0).delay(2000).hide(0);
+        },
+        resetSearch: function () {
+            jQuery('#suggestor').val('');
+            jQuery('#location-id').val('');
+            jQuery('#store-stock-results').html('');
+            jQuery("#search-stores-btn").attr("disabled", true);
+            jQuery('#close-search-btn').hide();
+            NS.cookie.remove('searchtextfull');
+            NS.cookie.remove('locationId');
+        },
+        toggleStoreContent: function (trigger, content) {
+            $(trigger).toggleClass('active');
+            content.stop().slideToggle(500);
+        },
+        disableAddtoCart: function(){
+            $('.add-to-cart-wrapper .add-to-box .add-to-cart').hide();
+            var html = '<div class="petbarn-out-of-stock-wrapper"><span class="petbarn-out-of-stock">Out of Stock</span><span class="oos-msg">Back in stock soon, please select another size, product or store.</span></div>';
+            if($('.product-shop-container .product-shop .add-to-box div.petbarn-out-of-stock-wrapper').length == 0){
+                $('.product-shop-container .product-shop .add-to-box').append(html);
+            }else{
+                $('.product-shop-container .product-shop .add-to-box div.petbarn-out-of-stock-wrapper').show()
+            }
+        },
+        enableAddtoCart: function(){
+            $('.product-shop-container .product-shop .add-to-box .petbarn-out-of-stock-wrapper').remove();
+
+            if($('.add-to-cart-wrapper > div.add-to-box > div.add-to-cart').length > 0){
+                $('.add-to-cart-wrapper .add-to-box .add-to-cart').show();
+            }else{
+                if($('#btn-add-cart').length > 0){
+                    var html = $('#btn-add-cart div.add-to-cart');
+                    $('.product-shop-container .product-shop .add-to-box').append(html);
+                    $('.add-to-cart-wrapper .add-to-box .add-to-cart').show();
+                }
+            }
+
+        },
+        disableCurrentVariants: function () {
+            if ($('.nsd-ul ul li').length > 0)
+            {
+                if (NS.cookie.read('cartdeliveryoptions') == "CC") {
+                    $('.nsd-ul ul li').removeClass('disabled');
+                }
+
+                if($('.nsd-ul ul li.nsdroll').length > 0){
+                    $('.nsd-ul ul li.nsdroll').addClass('disabled');
+                }
+            }
+        },
+        enableCurrentVariants: function () {
+            if ($('.nsd-ul ul li').length > 0)
+            {
+                if (NS.cookie.read('cartdeliveryoptions') == "CC") {
+                    $('.nsd-ul ul li').removeClass('disabled');
+                }
+
+                if($('.nsd-ul ul li.nsdroll').length > 0){
+                    if ($('.nsd-ul ul li.nsdroll').hasClass('disabled')) {
+                        $('.nsd-ul ul li.nsdroll').removeClass('disabled');
+                    }
+                }
+            }
+        },
+        setCommerceConnect: function (commerceConnect) {
+            this.commerceConnect = commerceConnect;
+        },
+        getCommerceConnect: function () {
+            return this.commerceConnect;
+        },
+    }
+
+    PET.StoreSearch = {
+        searchAutoLoad: function (locationId, productSku) {
+            jQuery("#pickup-in-store-text-wrap").hide();
+            if (locationId == "" || locationId == "undefined") {
+                jQuery("#search-stores-btn").attr("disabled", true);
+                jQuery("#my-store-wrapper").hide();
+            }
+            else {
+                jQuery("#search-stores-btn").attr("disabled", false);
+                jQuery("#my-store-wrapper").show();
+                var productQty = (jQuery.isNumeric(jQuery('.product-qty .qty-wrapper #qty').val())?jQuery('.product-qty .qty-wrapper #qty').val():1);
+                this.searchStores(locationId, productSku, productQty);
+            }
+        },
+        searchStores: function (locationId, productSku, qty) {
+            if((jQuery("#suggestor").length > 0) && (NS.cookie.read('searchtextfull') != null)) {
+                PET.storepickupproduct.selectPostCode(locationId, '', productSku, qty);
+            }
+        },
+        checkStoreStockQtyChenge: function (productSku, qty) {
+            var deliveryOption = PET.storepickup.deliveryoption.getDeliveryOption();
+            if(deliveryOption=='CC') {
+                var locationId = jQuery('#location-id').val();
+                this.searchStores(locationId, productSku, qty);
+                jQuery('.button.info.tiny.btn-view-more-stores').hide();
+                jQuery('#location-list').hide();
+            }
+        },
+        setMyStore: function (url, storeLocationId, stockStatus) {
+            jQuery('#product-delivery-please-wait').show();
+            var locationId = jQuery('#location-id').val();
+            var searchTextFull = jQuery('#search-text-full').val();
+            var redirectUrl = url + '?locationId=' + locationId + "&storeLocationId=" + storeLocationId + "&searchTextFull=" + searchTextFull + "&stockStatus=" + stockStatus;
+            jQuery.ajax({
+                url: redirectUrl,
+                dataType: 'json',
+                type: 'get',
+                success: function (data) {
+                    jQuery('#product-delivery-please-wait').hide();
+                    var locationId = data.locationId;
+                    var storeLocationId = data.storeLocationId;
+                    var storeName = data.storeName;
+                    var storeIdentifier = data.storeIdentifier;
+                    var storePostcode = data.storePostcode;
+                    var storeHours = data.storeHours;
+                    var stockStatus = data.stockStatus;
+                    var oldStoreLocationId = jQuery('#store-location-id').val();
+                    var oldStockStatus = jQuery('#item-stock-status-' + oldStoreLocationId).val();
+                    var setMyStoreOldHtml = "<a class='set-my-store' title='Set as my store' onclick=PET.StoreSearch.setMyStore('" + url + "','" + oldStoreLocationId + "','" + oldStockStatus + "') href='javascript:void(0);'>Set as my store</a>";
+                    var stockMessageHtml = "<span class='body'>";
+                    var stockClass = "";
+
+                    if (stockStatus == 1) {
+                        stockMessageHtml += jQuery("#available-for-pickup-today").html();
+                        stockClass = "in-store";
+                        jQuery(".pickup-in-store .icon").removeClass("inactive");
+                        jQuery(".pickup-in-store .icon").addClass("active");
+                        PET.storepickupproduct.toggles.inStore = true;
+                        NS.cookie.create('hasmystore', 1);
+                    }
+                    else {
+                        stockMessageHtml += jQuery("#Pickup-in-Store-out-of-stock-msg").html();
+                        stockClass = "out-of-store";
+                        jQuery(".pickup-in-store .icon").removeClass("active");
+                        jQuery(".pickup-in-store .icon").addClass("inactive");
+                        PET.storepickupproduct.toggles.inStore = false;
+                        NS.cookie.create('hasmystore', 0);
+                    }
+                    NS.cookie.create('cartdeliveryoptions', 'CC');
+                    var itemStoreStock = jQuery('#item-stock-status-'+storeLocationId).val();
+                    jQuery('#my-store-stock').val(itemStoreStock);
+
+                    jQuery('#my-store:first-child').html('My Store: ' + storeName);
+                    jQuery.colorbox.resize();
+                }
+            });
+        }
+    }
+
+    PET.storepickupgroupproduct = {
+
+        setGroupProductOptions: function (maxWeightLimit, productWeight, loadDeliveryOptionsInQuickviewUrl, loadDeliveryOptionsUrl, productId, productSku, hasQuickview, parentProductUrl, notAvailableText, currentQty) {
+            PET.storepickupproduct.toggles.inStore = undefined;
+            PET.storepickupproduct.loadDeliveryOptions(loadDeliveryOptionsUrl, productId, productSku, maxWeightLimit, productWeight, notAvailableText, currentQty);
+            jQuery('#product-delivery-options-old').html(jQuery('#product-delivery-options').html());
+            PET.storepickupproduct.setWeight(maxWeightLimit, productWeight);
+            if (typeof Afterpay != 'undefined') {
+                Afterpay.Installments.render(true);
+            }
+        },
+        renderProductVariants: function (allProductVariants, useData, currentVariant) {
+            var currentSku = PET.storepickupgroupproduct.getCurrentSku();
+            var SKUs = PET.storepickupgroupproduct.getListSkus();
+            if (!allProductVariants && useData != 1) {
+                if ($.type(SKUs) === "string") {
+                    var postcode = NS.cookie.read('postcodeHD');
+                    if (typeof postcode == "undefined" || postcode == null) {
+                        var myStoreHDData = NS.cookie.read('myStoreHDData');
+                        myStoreHDData = jQuery.parseJSON(myStoreHDData);
+                        if (!!myStoreHDData) {
+                            if (!!myStoreHDData.postcode) {
+                                postcode = myStoreHDData.postcode;
+                            }
+                        }
+                    }
+
+                    PET.storepickup.deliveryoption.showLoading();
+                    $.ajax({
+                        url: window.location.origin + '/store-pickup/ajax/getAllProductVariantsApi',
+                        dataType: 'json',
+                        type: 'post',
+                        data: {postcode: postcode, sku: currentSku, skus: SKUs, ajax: 1},
+                        success: function (data) {
+                            var allProductVariants = null;
+                            if (!!data.allProductVariants) {
+                                allProductVariants = data.allProductVariants;
+                                var currentVariant = null;
+
+                                if (data.productVariant) {
+                                    currentVariant = data.productVariant;
+                                }
+
+                                if ($('#group_product option').length > 0) {
+                                    PET.storepickupgroupproduct.renderVariants(SKUs, allProductVariants, currentVariant);
+                                } else {
+                                    PET.storepickupgroupproduct.renderBtnAddtoCart(SKUs, allProductVariants, currentVariant);
+                                }
+                            }
+                            PET.storepickup.deliveryoption.hideLoading();
+                            jQuery.colorbox.resize();
+                        },
+                        error: function () {
+                            PET.storepickup.deliveryoption.hideLoading();
+                            return false;
+                        }
+                    });
+                }
+
+            } else {
+                if (PET.storepickupgroupproduct.isGroupedProduct()) {
+                    PET.storepickupgroupproduct.renderVariants(SKUs, allProductVariants, currentVariant);
+                } else {
+                    PET.storepickupgroupproduct.renderBtnAddtoCart(SKUs, allProductVariants, currentVariant);
+                }
+            }
+        },
+        renderVariants: function (SKUs, variants, currentVariant) {
+
+            var allProductVariants = null;
+            if (!!variants.api) {
+                allProductVariants = variants.api;
+                if (!!SKUs && !!allProductVariants) {
+                    var SKUs = SKUs.split(',');
+                    for (var i = 0; i < SKUs.length; i++) {
+                        var qty = 0;
+                        var sttStock = "";
+
+                        if (!!SKUs[i]) {
+                            if (!!allProductVariants[SKUs[i]]) {
+                                if (!!allProductVariants[SKUs[i]][0]) {
+                                    var product = allProductVariants[SKUs[i]][0];
+                                    if (!!product['qty']) {
+                                        qty = product['qty'];
+                                    }
+                                }
+                                var index = $('*[data-sku="' + SKUs[i] + '"]').index();
+                                if (qty < parseInt($('#qty').val())) {
+                                    sttStock = "outstock";
+                                } else {
+                                    sttStock = "instock";
+                                }
+
+                                PET.storepickupgroupproduct.renderVariant(index, sttStock);
+
+                                if ($('.nsd-ul ul').find('li').eq(index).hasClass('nsdroll')) {
+                                    PET.storepickupgroupproduct.renderCurrentProduct(currentVariant, sttStock);
+                                }
+                            }
+                        }
+                    }
+                }
+            } else if (!!variants.default) {
+
+                allProductVariants = variants.default;
+
+                if (!!SKUs && !!allProductVariants) {
+                    var SKUs = SKUs.split(',');
+                    for (var i = 0; i < SKUs.length; i++) {
+                        if (!!SKUs[i]) {
+
+                            if (!!allProductVariants[SKUs[i]]) {
+                                var product = allProductVariants[SKUs[i]];
+                                var instock = product['stock_availablility'];
+                                var index = $('*[data-sku="' + SKUs[i] + '"]').index();
+                                var sttStock = "";
+
+                                if (instock != '1') {
+                                    sttStock = "outstock";
+                                } else {
+                                    sttStock = "instock";
+                                }
+
+                                PET.storepickupgroupproduct.renderVariant(index, sttStock);
+
+                                if ($('.nsd-ul ul').find('li').eq(index).hasClass('nsdroll')) {
+                                    PET.storepickupgroupproduct.renderCurrentProduct(currentVariant, sttStock);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        getCurrentSku: function () {
+            var sku = "";
+
+            if ($('#group_product option').length > 0) {
+                if ($('.nsd-ul ul li.nsdroll').length > 0) {
+                    var index = $('.nsd-ul ul li.nsdroll').index();
+                    sku = $('#group_product').find('option').eq(index).data('sku');
+                }
+            } else {
+                sku = $('#product-sku').val();
+            }
+
+            return sku;
+        },
+        getListSkus: function () {
+            var SKUs = "";
+
+            if ($('#group_product option').length > 0) {
+                $('#group_product option').each(function () {
+                    if (!!jQuery(this).attr('data-sku') && jQuery(this).attr('data-sku') != "") {
+                        if (SKUs != "") {
+                            SKUs += ',' + jQuery(this).attr('data-sku');
+                        } else {
+                            SKUs += jQuery(this).attr('data-sku');
+                        }
+                    }
+                });
+            } else {
+                SKUs = $('#product-sku').val();
+            }
+
+            return SKUs;
+        },
+        renderBtnAddtoCart: function (SKUs, variants, currentVariant) {
+
+            var allProductVariants = null;
+            if(!!variants.api){
+                allProductVariants = variants.api;
+                if (!!SKUs && !!allProductVariants) {
+                    var SKUs = SKUs.split(',');
+                    for (var i = 0; i < SKUs.length; i++) {
+                        var qty = 0;
+                        var sttStock = "";
+                        if (!!SKUs[i]) {
+                            if (!!allProductVariants[SKUs[i]]) {
+                                if (!!allProductVariants[SKUs[i]][0]) {
+                                    var product = allProductVariants[SKUs[i]][0];
+                                    if (!!product['qty']) {
+                                        qty = product['qty'];
+                                    }
+                                }
+
+                                if (qty < parseInt($('#qty').val())) {
+                                    sttStock = "outstock";
+                                } else {
+                                    sttStock = "instock";
+                                }
+                                PET.storepickupgroupproduct.renderCurrentProduct(currentVariant, sttStock);
+                            }
+                        }
+                    }
+                }
+
+            } else if (!!variants.default) {
+
+                allProductVariants = variants.default;
+                if (!!SKUs && !!allProductVariants) {
+                    var SKUs = SKUs.split(',');
+                    for (var i = 0; i < SKUs.length; i++) {
+                        if (!!SKUs[i]) {
+                            if (!!allProductVariants[SKUs[i]]) {
+                                var product = allProductVariants[SKUs[i]];
+                                var instock = product['stock_availablility'];
+                                var sttStock = "";
+
+                                if (instock != '1') {
+                                    sttStock = "outstock";
+                                } else {
+                                    sttStock = "instock";
+                                }
+                                PET.storepickupgroupproduct.renderCurrentProduct(currentVariant, sttStock);
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        resetVariants: function () {
+            if ($('.nsd-ul ul li').length > 0) {
+                $('.nsd-ul ul li').removeClass('disabled');
+            }
+        },
+        selectFirstOption: function () {
+            if (NS.cookie.read('cartdeliveryoptions') == "HD") {
+                if ($('#group_product option:selected').length == 0) {
+                    $('#group_product option:first').prop("disabled", false);
+                    $('#group_product option:first').prop('selected', true);
+                    if (!$('.nsd-ul ul').find('li').hasClass('nsdroll')) {
+                        $('.nsd-ul ul li:first').addClass('nsdroll');
+                    }
+                }
+            } else if (NS.cookie.read('cartdeliveryoptions') == "CC") {
+
+                if (!NS.cookie.read('locationId')) {
+                    PET.storepickupgroupproduct.resetVariants();
+                    PET.storepickupproduct.enableAddtoCart();
+                }
+
+                if ($('#group_product option:selected').length == 0) {
+                    $('#group_product option:first').prop("disabled", false);
+                    $('#group_product option:first').prop('selected', true);
+                    if (!$('.nsd-ul ul').find('li').hasClass('nsdroll')) {
+                        $('.nsd-ul ul li:first').addClass('nsdroll');
+                    }
+                }
+            }
+        },
+        renderCurrentProduct: function (currentVariant, sttStock) {
+
+            if (!!currentVariant) {
+                if (typeof (currentVariant['homeDeliveryStatus']) != "undefined") {
+
+                    if (currentVariant['homeDeliveryStatus'] != 1 || sttStock == "outstock") {
+                        PET.storepickupproduct.disableAddtoCart();
+                        PET.storepickup.deliveryoption.disableHD();
+
+                        if (PET.storepickupgroupproduct.isGroupedProduct()) {
+                            PET.storepickupproduct.disableCurrentVariants();
+                        }
+
+                    } else if (currentVariant['homeDeliveryStatus'] == 1 && sttStock == "instock") {
+
+                        PET.storepickupproduct.enableAddtoCart();
+                        PET.storepickup.deliveryoption.enableHD();
+
+                        if (PET.storepickupgroupproduct.isGroupedProduct()) {
+                            PET.storepickupproduct.enableCurrentVariants();
+                        }
+
+                    }
+                }
+            }
+        },
+        isGroupedProduct: function () {
+            if (!!$('#group_product') && $('#group_product option').length > 0 && $('.nsd-ul ul li').length > 0) {
+                return true;
+            }
+            return false;
+        },
+        renderVariant: function (index, stt) {
+            if(typeof index == 'undefined'){
+                return false;
+            }
+
+            if (stt == "instock") {
+                if ($('.nsd-ul ul').find('li').eq(index).hasClass('disabled')) {
+                    $('.nsd-ul ul').find('li').eq(index).removeClass('disabled');
+                }
+            } else if (stt == "outstock") {
+                if (!$('.nsd-ul ul').find('li').eq(index).hasClass('disabled')) {
+                    $('.nsd-ul ul').find('li').eq(index).addClass('disabled');
+                }
+
+                if (!$('.nsd-ul ul').find('li').eq(index).hasClass('nsdroll')) {
+                    if(NS.cookie.read('postcodeHD') != null){
+                        if ($('.nsd-ul ul').find('li').eq(index).hasClass('disabled')) {
+                            $('.nsd-ul ul').find('li').eq(index).removeClass('disabled');
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+})(jQuery);
+
+
+var pickUpInstore = false;
+var loadDeliveriOption = false;
+
+PET.storepickup.deliveryoption = (function($, $storepickupproduct, $storeSearch) {
+    var instance = {};
+    var elements  = {
+        option_shipping : '.option-shipping',
+        product_delivery_options_container : '#product-delivery-options',
+        pickup_container :'.pickup',
+        method_shipping_container : '#method-shipping',
+        home_delivery_option_container : '#home-delivery-option',
+        click_and_collect_option : '#click-and-collect-option',
+        click_and_collect_slider_item : '.st-loc-container',
+        search_tore : '#search-store',
+        store_stock_results : '#store-stock-results-cc',
+        product_delivery_please_wait  : '#product-delivery-please-wait',
+        list_store_cc : '#location-list',
+        close_search_cc : '#close-search-btn',
+        close_search_hd : '#close-search-hd-btn'
+
+    };
+    var messages = {
+        out_of_stock : 'Out Of Stock for your selected postcode',
+        hd_not_available : 'Not available for this product'
+    };
+    var productVariant = {
+        sku : '',
+        qty : 0,
+        isCommerceConnect : 0
+    };
+    var currentDeliveryOption = '';
+    var deliveryHDData = {
+        postcode : '',
+        country: '',
+        city:''
+    }
+    var isMobile = false;
+    var shoxboxCC = false;
+    var hdClick = true;
+    var ccClick = true;
+    var isHomeDelivery = true;
+    var isClickAndCollect = true;
+    instance.init = function (response, notAvailableText) {
+        var defaultOption = false;
+        var product = response.productVariant;
+
+        hdClick = !jQuery(elements.home_delivery_option_container).hasClass('disable');
+        ccClick = !jQuery(elements.click_and_collect_option).hasClass('disable');
+
+        if (Math.max(document.documentElement.clientWidth, window.innerWidth || 0) <= 640) {
+            isMobile = true; //is mobile
+        }
+
+        setProductVariant( product.sku,product.qty, product.isCommerceConnect);
+
+        if(jQuery('#storesuggestor').length > 0) {
+            instance.autocompleteStoreHD('storesuggestor', 'search-postcode');
+        }
+        if(jQuery('#suggestor').length > 0) {
+            instance.autocompleteCC('suggestor', 'search-store');
+        }
+        instance.bindElement();
+
+        var deliveryOption =  NS.cookie.read('cartdeliveryoptions');
+        if(jQuery('#storesuggestor').val() > 0) {
+            jQuery(elements.close_search_hd).show();
+        }
+        if(deliveryOption=='HD'){
+            if(!jQuery(elements.home_delivery_option_container).hasClass('unclick')) {
+                currentDeliveryOption = 'HD';
+                jQuery(elements.home_delivery_option_container).addClass('checked');
+                jQuery(elements.click_and_collect_option).removeClass('checked').removeClass('selecting');
+                defaultOption = true;
+            }
+
+        }else if(deliveryOption=='CC') {
+            if(!jQuery(elements.click_and_collect_option).hasClass('disable')) {
+                currentDeliveryOption = 'CC';
+                jQuery(elements.home_delivery_option_container).removeClass('checked').removeClass('selecting');
+                jQuery(elements.click_and_collect_option).addClass('checked');
+                defaultOption = true;
+                if(isMobile) {
+                    shoxboxCC = true;
+                }
+            }
+        }
+
+        if(defaultOption == false){
+            if(!jQuery(elements.home_delivery_option_container).hasClass('unclick')) {
+                currentDeliveryOption = 'HD';
+                jQuery(elements.home_delivery_option_container).addClass('checked');
+                jQuery(elements.click_and_collect_option).removeClass('checked').removeClass('selecting');
+            } else {
+                if(!jQuery(elements.click_and_collect_option).hasClass('disable')) {
+                    currentDeliveryOption = 'CC';
+                    jQuery(elements.home_delivery_option_container).removeClass('checked').removeClass('selecting');
+                    jQuery(elements.click_and_collect_option).addClass('checked');
+                    /*if(isMobile) {
+                        shoxboxCC = true;
+                    }*/
+                }
+            }
+        }
+
+        initOptionDelivery();
+        createCookieCartDeliveryoption(currentDeliveryOption);
+
+        var productSku = jQuery('#product-sku').val();
+
+        if((jQuery("#suggestor").length > 0) && (NS.cookie.read('searchtextfull') != null) && (NS.cookie.read('searchtextfull') != '')) {
+            instance.searchStores(productSku, function (data) {
+                var storeNumber = jQuery(elements.list_store_cc).attr('data-store');
+                if (!isMobile && parseInt(storeNumber) > 0)
+                {
+                    if (jQuery('#suggestor').val().length > 0) {
+                        jQuery(elements.close_search_cc).show();
+                    }
+                    instance.toggleSearchContent();
+                    jQuery(elements.store_stock_results).hide();
+
+                }
+                if (jQuery(elements.home_delivery_option_container).hasClass('checked')) {
+                    shoxboxCC = false;
+                    createCookieCartDeliveryoption('HD')
+                } else if (jQuery(elements.click_and_collect_option).hasClass('checked')) {
+                    shoxboxCC = false;
+                    createCookieCartDeliveryoption('CC')
+                }
+                jQuery('#search-store').hide();
+                initBoxCC();
+                if (jQuery(elements.click_and_collect_option).hasClass('checked')) {
+                    initCCAddToCartButton();
+                }
+            });
+            //loadDeliveriOption = true;
+        } else {
+            initBoxCC();
+            initCCAddToCartButton();
+        }
+
+        if(jQuery(elements.home_delivery_option_container).hasClass('disable')){
+            jQuery(elements.home_delivery_option_container).find('.right-icon-method-shipping').addClass('choice');
+        }
+        if(jQuery(elements.click_and_collect_option).hasClass('disable')){
+            jQuery(elements.click_and_collect_option).find('.right-icon-method-shipping').addClass('choice');
+        }
+
+    }
+    instance.bindElement = function () {
+
+        jQuery('.change-store-method-shipping').on('click', function (e) {
+            e.preventDefault();
+            if(jQuery(elements.pickup_container).hasClass('expand')){
+                return false;
+            }
+            if(!jQuery(elements.pickup_container).hasClass('selecting')){
+                jQuery(elements.method_shipping_container).removeClass('default');
+
+                jQuery(elements.option_shipping).removeClass('checked');
+                jQuery(elements.home_delivery_option_container).removeClass('selecting').addClass('visited');
+
+                jQuery(elements.pickup_container).addClass('checked selecting');
+                initBoxCC();
+                initCCAddToCartButton();
+            }
+            instance.toggleSearchContent();
+            if(!isMobile) {
+                jQuery('#location-list-ul').slick('reinit');
+            }
+            jQuery.colorbox.resize();
+            return false;
+
+        });
+
+        jQuery(elements.home_delivery_option_container).on('click', function (e) {
+            var $instance = jQuery(this);
+            if (isMobile) {
+                jQuery(elements.store_stock_results).hide();
+                var tooltipDisable = $instance.find('.tooltip-option-shipping');
+                if (tooltipDisable.hasClass('none')) {
+                    tooltipDisable.removeClass('none');
+                }
+            }
+            if(jQuery(elements.home_delivery_option_container).hasClass('unclick')){
+                return false;
+            }
+
+            createCookieCartDeliveryoption('HD')
+            jQuery(elements.method_shipping_container).removeClass('default');
+            if(jQuery(elements.home_delivery_option_container).hasClass('selecting')){
+                return false;
+            }
+            shoxboxCC = false;
+
+            if (!$instance.hasClass('checked')) {
+                var postCode = jQuery(elements.method_shipping_container).attr('data-postcode');
+                var country = jQuery(elements.method_shipping_container).attr('data-country');
+                var location = jQuery(elements.method_shipping_container).attr('data-location');
+            }
+            jQuery(elements.option_shipping).removeClass('checked');
+            jQuery(elements.click_and_collect_option).removeClass('selecting').addClass('visited');
+
+            if ($instance.hasClass('visited')) {
+                $instance.removeClass('visited');
+            }
+
+            // hidden slider store
+            if (jQuery(elements.store_stock_results).show()) {
+                jQuery(elements.store_stock_results).hide();
+            }
+
+            if (!jQuery(elements.home_delivery_option_container).hasClass('selecting')) {
+                PET.storepickupgroupproduct.renderProductVariants();
+            }
+
+            $instance.addClass('checked selecting');
+
+            currentDeliveryOption = 'HD';
+
+
+            if (jQuery(elements.store_stock_results).find('.no-result').length > 0) {
+                jQuery(elements.store_stock_results).find('.no-result').hide();
+            }
+
+            initBoxCC();
+            initHDAddToCartButton();
+            jQuery.colorbox.resize();
+        });
+
+       // if(!jQuery(elements.click_and_collect_option).hasClass('disable')) {
+            jQuery(elements.click_and_collect_option).on('click', function (e) {
+                var $instance = jQuery(this);
+                if (isMobile) {
+                    jQuery(elements.store_stock_results).hide();
+                    var tooltipDisable = $instance.find('.tooltip-option-shipping');
+                    if (tooltipDisable.hasClass('none')) {
+                        tooltipDisable.removeClass('none');
+                    }
+                }
+                if($instance.hasClass('disable')){
+                    return false;
+                }
+                createCookieCartDeliveryoption('CC')
+                jQuery(elements.method_shipping_container).removeClass('default');
+
+                var $instance = jQuery(this);
+                if (!$instance.hasClass('checked')) {
+                    var postCode = jQuery(elements.method_shipping_container).attr('data-postcode');
+                    var country = jQuery(elements.method_shipping_container).attr('data-country');
+                    var location = jQuery(elements.method_shipping_container).attr('data-location');
+                }
+
+                jQuery(elements.option_shipping).removeClass('checked');
+                jQuery(elements.home_delivery_option_container).removeClass('selecting').addClass('visited');
+
+                if ($instance.hasClass('visited')) {
+                    $instance.removeClass('visited');
+                }
+                $instance.addClass('checked selecting');
+
+                currentDeliveryOption = 'CC';
+                if (isMobile) {
+                    //jQuery(elements.store_stock_results).show();
+                }
+
+                if(jQuery(elements.store_stock_results).find('.no-result').length > 0) {
+                    jQuery(elements.store_stock_results).find('.no-result').show();
+                }
+                if(jQuery('#location-list-ul').hasClass('slick-initialized')){
+                    jQuery('#location-list-ul').slick('reinit');
+                }
+                jQuery('#suggestor').show();
+                initBoxCC();
+
+                if(PET.storepickupgroupproduct.isGroupedProduct()){
+                    PET.storepickupgroupproduct.resetVariants();
+                }
+
+                PET.storepickupproduct.enableAddtoCart();
+
+                initCCAddToCartButton();
+                if(jQuery('#location-list').length > 0) {
+                    shoxboxCC = false;
+                    instance.toggleSearchContent();
+                    if(!isMobile) {
+                        jQuery('#location-list-ul').slick('reinit');
+                    }
+                }
+                jQuery.colorbox.resize();
+            });
+        //}
+
+        /*
+        * reason : tooltip inside slider overlap
+        * solution : Push location detail to tooltips outside slider
+        */
+        if(!isMobile) {
+            jQuery(elements.click_and_collect_option).on("mouseover", ".view-store-details", function () {
+                var _this = jQuery(this);
+
+                var offsetTopView = _this.position().top;
+                var heightSlider = _this.closest('.slider_container').height();
+
+                var cloneInfo = _this.find('.tooltips-detail').clone();;
+                jQuery('.tooltip-detail-location').html(cloneInfo);
+
+                jQuery('.tooltip-detail-location').css({
+                    display: 'inline-block',
+                    left: _this.closest('.slick-track').position().left + _this.position().left + "px",
+                    bottom: (heightSlider - offsetTopView) + 30 + "px"
+                });
+
+            }).on("mouseout", function () {
+
+                jQuery('.tooltip-detail-location').find('.tooltips-detail').remove();
+                jQuery('.tooltip-detail-location').removeAttr("style");
+
+            });
+        }
+
+        jQuery(elements.close_search_cc).on('click', function (e){
+            e.preventDefault();
+            jQuery(this).hide();
+            jQuery('#suggestor').val('');
+            NS.cookie.remove('searchtextfull');
+            NS.cookie.remove('locationId');
+            return false;
+        });
+
+        jQuery(elements.close_search_hd).on('click', function (e){
+            e.preventDefault();
+            jQuery(this).hide();
+            jQuery('#storesuggestor').val('');
+            NS.cookie.remove('searchtextfullHD');
+            NS.cookie.remove('postcodeHD');
+            NS.cookie.remove('storeNameHD');
+            return false;
+        });
+
+        jQuery('#suggestor').keyup(function (e) {
+            if(jQuery(this).val() != ''){
+                jQuery(elements.close_search_cc).show();
+            }else {
+                jQuery(elements.close_search_cc).hide();
+            }
+        })
+
+        jQuery('#storesuggestor').keyup(function (e) {
+            if(jQuery(this).val() != ''){
+                jQuery(elements.close_search_hd).show();
+            }else {
+                jQuery(elements.close_search_hd).hide();
+            }
+        })
+
+        jQuery('.close-box-tooltip').on('click',function () {
+            jQuery(this).closest('.tooltip-option-shipping').addClass('none');
+            return false;
+        });
+
+        jQuery('#storesuggestor').on('click',function (e) {
+            e.preventDefault();
+            return false;
+        })
+    },
+        instance.optionDeliveryClicked = function (optionId,pc, c, id) {
+            if(optionId == "click-and-collect-option"){
+                if(NS.cookie.read('cartdeliveryoptions')=="HD" || NS.cookie.read('cartdeliveryoptions')=="CC"){
+                    if(pc!="" || id!="") {
+                        PET.storepickup.selectPostCode(pc, c, id);
+                    }
+                }
+                NS.cookie.create('cartdeliveryoptions', 'CC');
+
+
+                /*
+                 if(jQuery("#co-shipping-method-form .buttons-set .button").length==1){
+                     this.clearStore();
+                 }*/
+
+            }
+            else{
+                NS.cookie.create('cartdeliveryoptions', 'HD');
+                this.clearStore();
+                jQuery(".shipping *").prop('disabled',false);
+            }
+        },
+        instance.clearStore=  function (callbackFunc) {
+            instance.showLoading();
+            $.ajax({
+                url: window.location.origin + '/store-pickup/ajax/clearMyStore',
+                dataType: 'json',
+                type: 'get',
+                success: function (data) {
+                    instance.hideLoading();
+                    jQuery('#my-store').find('.my-store-title').html('In store');
+                    jQuery('#my-store').find('.out-of-store').hide();
+                    jQuery('#suggestor').val('');
+
+                    NS.cookie.create('searchtextfull', '');
+                    NS.cookie.create('locationId', '');
+                    NS.cookie.create('postcode', '');
+                    NS.cookie.create('cartdeliveryoptions', '');
+
+                    if (typeof callbackFunc !== 'undefined' && jQuery.isFunction(callbackFunc)){
+                        callbackFunc(data);
+                    }
+                jQuery.colorbox.resize();
+                },
+                error: function () {
+                    instance.hideLoading();
+                }
+            });
+        },
+        instance.toggleSearchContent   = function () {
+            if(!shoxboxCC){
+                jQuery(elements.store_stock_results).show();
+                jQuery(elements.click_and_collect_option).addClass('expand');
+                jQuery('#suggestor').show();
+                if(jQuery('#suggestor').val() != '') {
+                    jQuery(elements.close_search_cc).show();
+                }
+                shoxboxCC = true;
+            } else {
+                jQuery(elements.close_search_cc).hide();
+                jQuery(elements.store_stock_results).hide();
+                jQuery('#suggestor').hide();
+                shoxboxCC = false;
+            }
+
+            initBoxCC();
+        },
+        instance.autocompleteStoreHD = function (e, c) {
+
+            var selectedVal = jQuery('#storesuggestor').val();
+
+            new Autocomplete(e, {
+                serviceUrl:window.location.origin + '/store-finder/ajax/searchbycountry?countrycode=AU' + selectedVal,
+                onSelect: function (v, d) {
+                    if (d.length) {
+                        var postcode = d[0].postcode;
+                        var city = d[0].city;
+                        var country = d[0].country_id;
+                        var fulltext = d[0].fulltext;
+                        var suburb =  d[0].suburb;
+                        var statecode = d[0].statecode;
+                        instance.selectPostCodeHD(postcode,city,country,fulltext, suburb, statecode,
+                            function () {
+                                shoxboxCC = true;
+                            });
+                    }
+                jQuery.colorbox.resize();
+                },
+                onLoadStart: function () {
+                    jQuery('#storesuggestor').parent().addClass('loading');
+                    jQuery.colorbox.resize();
+                },
+                onLoadComplete: function () {
+                    var parentInput = jQuery('#storesuggestor').parent();
+                    parentInput.removeClass('loading');
+                    var checkAjaxContent = parentInput.next();
+                    if (checkAjaxContent.length > 0) {
+                        checkAjaxContent.css({
+                            left: parentInput.position().left
+                        });
+                    }
+                    jQuery.colorbox.resize();
+                },
+                onShow: function () {
+                    jQuery.colorbox.resize();
+                },
+                container: c
+            });
+        },
+        instance.selectPostCodeCC = function (id, qty, postcode, sku, callbackFunc) {
+            if(postcode!='') {
+                instance.showLoading();
+                var productSku = jQuery('#product-sku').val();
+                var productQty = (jQuery.isNumeric(qty) ? qty : 1);
+                var maxWeightLimit = parseFloat(jQuery("#max-weight-limit").val());
+                var productWeight = parseFloat(jQuery("#product-weight").val());
+                PET.storepickupproduct.checkWeight(maxWeightLimit, productWeight);
+                if(id == ''){
+                    id =  NS.cookie.read('locationId');
+                }
+                $.ajax({
+                    url: window.location.origin + '/store-pickup/ajax/loadLocation',
+                    dataType: 'json',
+                    type: 'POST',
+                    data: {q: id, sku: sku, qty: productQty},
+                    success: function (data) {
+                        jQuery('#close-search-btn').show();
+                        jQuery('#location-id').val(id);
+                        jQuery('#search-text-full').val(jQuery('#suggestor').val());
+                        var response = data.list;
+                        NS.cookie.create('searchtextfull', jQuery('#suggestor').val());
+                        NS.cookie.create('locationId', id);
+                        NS.cookie.create('postcode', postcode);
+                        NS.cookie.create('cartdeliveryoptions', 'CC');
+                        jQuery(elements.method_shipping_container).attr('data-location',id);
+                        jQuery(elements.method_shipping_container).attr('data-postcode', postcode);
+
+                        // Response data to Obj
+                        var $jqResponse = $.parseHTML(response);
+                        var $storeStockResults = $(elements.store_stock_results).find('.slider_container');
+
+                        function displayNextStoreSet(type) { // next set of stores
+                            if (type == "all") { // Show all stores
+                                $storeStockResults.find('.location-list-ul').find('.store_item').show().removeClass('store-store-hidden').addClass('store-store-visible');
+                                jQuery(".btn-view-more-stores").hide();
+                            } else { // Store stores step by step
+                                var $nextStoreSet = $storeStockResults.find('.store_item').not(".store-visible").slice($storepickupproduct.nextStoreStartCount, $storepickupproduct.storestoShowPerResults);
+                                $nextStoreSet.show().removeClass('store-hidden').addClass('store-visible');
+                                if (!$nextStoreSet.hasClass('store-in-stock') && !$storeStockResults.find("#location-list-ul").find('.store_item').slice(0, $storepickupproduct.storestoShowPerResults).hasClass('store-in-stock')) {
+                                    var $nearest = $storeStockResults.find('div.store-in-stock:first');
+                                    if (!$nearest.find('.nearest-with-stock').length) {
+                                        $nearest.prepend('<span class="nearest-with-stock">nearest with stock</span>');
+                                    }
+                                    $nearest.show().removeClass('store-store-hidden').addClass('store-store-visible');
+                                }
+
+                                if ($storeStockResults.find('.store-hidden').length == 0) {
+                                    jQuery('.btn-view-more-stores').hide();
+                                }
+                            }
+                        }
+
+                        var hastore = 0;
+                        var myStoreData = JSON.parse(decodeURIComponent(NS.cookie.read('myStoreData')));
+                        var currentCCStoreLocationId = false;
+                        var currentCCStoreLocationStock = false;
+                        
+                        if (myStoreData) {
+                            if (typeof myStoreData === 'object' && myStoreData.hasOwnProperty('storeLocationId')) {
+                                currentCCStoreLocationId = myStoreData.storeLocationId;
+                            }
+                        }
+                        
+                        jQuery($jqResponse).find('.location-list-ul').find('.store_item').each(function () { // Add classes to ajax response
+                            var $self = jQuery(this);
+                            var stockCount = $self.data('in-stock');
+                            $self.addClass('store-hidden');
+
+                            if (stockCount === 0) {
+                                $self.addClass('store-out-of-stock');
+                            } else {
+                                $self.addClass('store-in-stock');
+                                hastore++;
+                            }
+                            console.log($self.data('id'));
+                            if ($self.data('id') == currentCCStoreLocationId) {
+                                currentCCStoreLocationStock = stockCount;
+                            }
+                        });
+                        console.log('hastore', hastore, 'currentCCStoreLocationId', currentCCStoreLocationId);
+                        if (hastore == 0 || (currentCCStoreLocationId && currentCCStoreLocationStock == 0)) {
+                            
+                            ccClick = false;
+                            if (jQuery(elements.click_and_collect_option).hasClass('checked')) {
+                                initCCAddToCartButton();
+                            }
+                        } else {
+                            ccClick = true;
+                            if (jQuery(elements.click_and_collect_option).hasClass('checked')) {
+                                initCCAddToCartButton();
+                            }
+                        }
+                        $storeStockResults.html($jqResponse);
+
+                        if ((JSON.parse(Mage.Cookies.get('myStoreData')) != null) && (JSON.parse(Mage.Cookies.get('myStoreData')).hasOwnProperty('storeLocationId'))) {
+                            var storePickupUrl = jQuery('#set-my-store-url').val();
+                            var locationId = JSON.parse(Mage.Cookies.get('myStoreData')).storeLocationId;
+                            var itemStoreStock = jQuery('#item-stock-status-' + locationId).val();
+                            jQuery('#my-store-stock').val(itemStoreStock);
+                            NS.cookie.create('hasmystore', itemStoreStock);
+                            jQuery('#pickup-in-store-content').find('.change-store-method-shipping').show();
+                        }
+
+                        var noStore = jQuery($jqResponse).find('.no-result');
+                        if(!jQuery(elements.method_shipping_container).hasClass('default')) {
+                            jQuery(elements.store_stock_results).show();
+                        }
+
+                        if (noStore.length == 0) {
+                            shoxboxCC = true;
+                            if (!isMobile) {
+                                initSlickSlider(jQuery('#location-list-ul'));
+                            } else {
+                                if ($storeStockResults.find('.store-hidden').length != 0) {
+                                    $storeStockResults.append('<a class="tiny btn-view-more-stores">load more stores</a>');
+                                    displayNextStoreSet("steps"); // Get first store set
+
+                                    jQuery(".btn-view-more-stores").on('click', function (e) {
+                                        e.preventDefault();
+                                        if (PET.storepickupproduct.showAllAtOnce) {
+                                            displayNextStoreSet("all");
+                                        } else {
+                                            displayNextStoreSet("steps");
+                                        }
+                                    });
+                                }
+                            }
+                            initEventStoreSilder();
+                        } else {
+                            jQuery('#pickup-in-store-content').find('.change-store-method-shipping').hide();
+                            jQuery(elements.store_stock_results).find('.no-result').show();
+                        }
+
+                        initBoxCC();
+
+                        jQuery(elements.close_search_cc).show();
+                        instance.hideLoading();
+
+                        if (typeof callbackFunc !== 'undefined' && jQuery.isFunction(callbackFunc)) {
+                            callbackFunc(data);
+                        }
+                        jQuery.colorbox.resize();
+                    },
+                    error: function () {
+                        instance.hideLoading();
+                    }
+                });
+            }
+        },
+        instance.autocompleteCC = function (e, c) {
+            var self = $storepickupproduct;
+            var selectedVal = jQuery('#suggestor').val();
+
+            new Autocomplete(e, {
+
+                serviceUrl: window.location.origin + '/store-finder/ajax/searchbycountry?countrycode=AU' + selectedVal,
+                onSelect: function (v, d) {
+                    //$('#reset_btn').show();
+                    if (d.length) {
+                        self.lat = d[0].latitude;
+                        self.lang = d[0].longitude;
+                        var qty = ((jQuery('.product-qty .qty-wrapper #qty').length > 0) ?jQuery('.product-qty .qty-wrapper #qty').val() : 1);
+                        var productQty = (jQuery.isNumeric(qty)?qty:1);
+                        var productSku = jQuery('#product-sku').val();
+                        instance.selectPostCodeCC(d[0].id, productQty, d[0].postcode, productSku);
+                        jQuery.colorbox.resize();
+                    }
+
+                    return false;
+                },
+                onLoadStart: function () {
+                    jQuery('#suggestor').addClass('loading');
+                    jQuery(elements.store_stock_results).find('.slider_container').html('');
+                    jQuery(elements.store_stock_results).hide();
+                    jQuery('#pickup-in-store-content').find('.change-store-method-shipping').hide();
+                    jQuery('#suggestor').parent().addClass('loading');
+                    jQuery.colorbox.resize();
+                },
+                onLoadComplete: function () {
+                    jQuery('#suggestor').removeClass('loading');
+                    jQuery(elements.store_stock_results).find('.slider_container').html('');
+                    jQuery(elements.store_stock_results).hide();
+                    jQuery('#pickup-in-store-content').find('.change-store-method-shipping').hide();
+                    jQuery('#suggestor').parent().removeClass('loading');
+                    jQuery.colorbox.resize();
+                },
+                onShow : function () {
+                    jQuery(elements.store_stock_results).find('.slider_container').html('');
+                    jQuery(elements.store_stock_results).hide();
+                    jQuery('#pickup-in-store-content').find('.change-store-method-shipping').hide();
+                    jQuery.colorbox.resize();
+                },
+                container: c
+            });
+        },
+        instance.selectPostCodeHD = function (postcode, city, country, fulltext,suburb, statecode, callbackFunc) {
+            if(postcode!='') {
+                instance.showLoading();
+
+                var productSku = jQuery(elements.method_shipping_container).attr('data-sku');
+                var qty = jQuery('#qty').val();
+                var productQty = (jQuery.isNumeric(qty) ? qty : 1);
+                var SKUs = PET.storepickupgroupproduct.getListSkus();
+
+                $.ajax({
+                    url: window.location.origin + '/store-pickup/ajax/setMyStoreHD',
+                    dataType: 'json',
+                    type: 'POST',
+                    data: {
+                        postcode: postcode,
+                        city: city,
+                        country: country,
+                        fulltext: fulltext,
+                        sku: productSku,
+                        qty: productQty,
+                        skus: SKUs,
+                        statecode: statecode,
+                        suburb: suburb
+                    },
+                    success: function (data) {
+
+                        NS.cookie.create('searchtextfullHD', jQuery('#storesuggestor').val());
+                        NS.cookie.create('postcodeHD', postcode);
+                        NS.cookie.create('storeNameHD', data.storeName);
+                        NS.cookie.create('cartdeliveryoptions', 'HD');
+
+                        NS.cookie.create('myStoreHDData',JSON.stringify({
+                            'postcode' : postcode,
+                            'storecode' : data.storecode,
+                            'storeName': data.storeName,
+                            'fulltext' :  jQuery('#storesuggestor').val()
+                        }));
+
+                        if (data.hasstore == '1') {
+                            jQuery('#home-delivery-postcode').html('to <u>' + data.storeName + '</u>');
+                        } else {
+                            jQuery('#home-delivery-postcode').html('No Store Found');
+                        }
+                        instance.hideLoading();
+
+                        var product = data.productVariant;
+                        setProductVariant(product.sku, product.qty, product.isCommerceConnect);
+                        setDeliveryHDData(data.postcode, data.city, data.country);
+
+                        if ((product.isCommerceConnect == 1 && product.qty < productQty) || product.homeDeliveryStatus == '0') {
+                            jQuery(elements.home_delivery_option_container).addClass('disable');
+                            jQuery(elements.home_delivery_option_container).find('.right-icon-method-shipping').addClass('choice');
+
+                            hdClick = false;
+                            initHDAddToCartButton();
+
+                            jQuery(elements.home_delivery_option_container).find('.content-tooltip').html(messages.out_of_stock);
+                        } else {
+                            jQuery(elements.home_delivery_option_container).removeClass('disable');
+                            jQuery(elements.home_delivery_option_container).find('.right-icon-method-shipping').removeClass('choice');
+
+                            hdClick = true;
+                            initHDAddToCartButton();
+
+                        }
+                        jQuery(elements.close_search_hd).show();
+                        if (typeof callbackFunc !== 'undefined' && jQuery.isFunction(callbackFunc)) {
+                            callbackFunc(data);
+                        }
+
+                        var allVariants = data.allProductVariants;
+                        var currentVariant = data.productVariant;
+                        PET.storepickupgroupproduct.renderProductVariants(allVariants, 1, currentVariant);
+
+                    },
+                    error: function () {
+                        instance.hideLoading();
+                    }
+                });
+            }
+        }    ,
+        instance.setMyStore = function (url, storeLocationId, stockStatus, callbackFunc) {
+
+            var locationId = jQuery('#location-id').val();
+            var searchTextFull = jQuery('#search-text-full').val();
+            var redirectUrl = url + '?locationId=' + locationId + "&storeLocationId=" + storeLocationId + "&searchTextFull=" + searchTextFull + "&stockStatus=" + stockStatus;
+
+            if (parseInt(stockStatus) == 1) {
+                instance.showLoading();
+                jQuery.ajax({
+                    url: redirectUrl,
+                    dataType: 'json',
+                    type: 'POST',
+                    success: function (data) {
+                        instance.hideLoading();
+                        var storeLocationId = data.storeLocationId;
+                        var storeName = data.storeName;
+
+                        var stockClass = "";
+                        jQuery('#my-store:first-child').removeClass('in-store').removeClass('out-of-store');
+
+                        stockClass = "in-store";
+                        PET.storepickupproduct.toggles.inStore = true;
+                        NS.cookie.create('hasmystore', 1);
+                        jQuery('#my-store').find('.my-store-title').html('At <a class="view-store-details" href="' + data.storeUrl + '">' + storeName + '</a>').show();
+                        jQuery('#my-store').find('.out-of-store').hide();
+                        jQuery(elements.click_and_collect_option).find('.right-icon-method-shipping').removeClass('choice');
+
+                        NS.cookie.create('cartdeliveryoptions', 'CC');
+                        var itemStoreStock = jQuery('#item-stock-status-' + storeLocationId).val();
+                        jQuery('#my-store-stock').val(itemStoreStock);
+
+                        if (jQuery('#my-store').length) {
+                            jQuery('#my-store').html('My Store: ' + storeName);
+                        }
+
+                        ccClick = true;
+                        initCCAddToCartButton();
+
+                        if (typeof callbackFunc !== 'undefined' && jQuery.isFunction(callbackFunc)) {
+                            callbackFunc(data);
+                        }
+                    }
+                });
+            } else {
+                stockClass = "in-store";
+                PET.storepickupproduct.toggles.inStore = false;
+                NS.cookie.create('hasmystore', 0);
+                //jQuery('#my-store').find('.my-store-title').html('My Store:  <a class="view-store-details" href="'+ url+'">'+storeName +'</a>');
+                jQuery('#my-store').find('.my-store-title').hide();
+                jQuery('#my-store').find('.out-of-store').html('Not available at your store').show();
+                jQuery(elements.click_and_collect_option).find('.right-icon-method-shipping').addClass('choice');
+
+                ccClick = false;
+                initCCAddToCartButton();
+
+            }
+        },
+        instance.clearMyPostcode = function () {
+            instance.showLoading();
+            $.ajax({
+                url: window.location.origin + '/store-pickup/ajax/clearMyPostCode',
+                dataType: 'json',
+                type: 'get',
+                success: function (data) {
+                    jQuery('#storesuggestor').val('');
+                    jQuery('#home-delivery-postcode').html(data.storeName);
+                    //jQuery(elements.home_delivery_option_container).find('.right-icon-method-shipping').removeClass('choice');
+                    jQuery(elements.close_search_hd).hide();
+                    NS.cookie.create('searchtextfullHD', '');
+                    NS.cookie.create('postcodeHD', '');
+                    NS.cookie.create('storeNameHD', '');
+
+                    instance.hideLoading();
+                },
+                error: function () {
+                    instance.hideLoading();
+                }
+            });
+
+
+        }
+    instance.getPostalCode = function(position) {
+        $.ajax({
+            type: "POST",
+            url: 'http://maps.googleapis.com/maps/api/geocode/json?latlng=' + position.coords.latitude + ',' + position.coords.longitude + '&sensor=true',
+            dataType: "json",
+            beforeSend: function(){
+                // do something before the request such as show a loading image
+            },
+            error: function(err){
+                // handle errors
+            },
+            success: function(data) {
+                var addresses = data.results; // cache results in a local var
+                $.each(addresses, function(i){ // iterate through to find a postal code
+                    if(this.types[0]=="postal_code"){ // check that the type is a postal code
+                        var postal=this['address_components'][0]['long_name']; // grab postal string
+                        if(postal.length > 3){ // is the result is more then 3 letter shorthand use it
+                            // do something with your result and then lets break the iteration
+                            console.log(postal);
+                            return false;
+                        }
+                    }
+                });
+            } // end success
+        }); // end ajax
+    };
+    instance.getDeliveryOption =function () {
+        return currentDeliveryOption;
+    };
+    instance.getProductVariant = function(){
+        return productVariant;
+    };
+    instance.searchStores = function (sku,callbackFunc) {
+        if((jQuery("#suggestor").length > 0) && (NS.cookie.read('searchtextfull') != null) && (NS.cookie.read('searchtextfull') != '')) {
+            var locationId = jQuery(elements.method_shipping_container).attr('data-location');
+            var postcode = jQuery(elements.method_shipping_container).attr('data-postcode');
+            if(postcode==''){
+                postcode = NS.cookie.read('postcode');
+            }
+            var qty = jQuery('#qty').val();
+            instance.selectPostCodeCC(locationId, qty, postcode, sku, callbackFunc);
+            jQuery.colorbox.resize();
+        }
+    }
+    instance.getDeliveryHDData = function () {
+        return deliveryHDData;
+    },
+        instance.disableHD = function(){
+            jQuery(elements.home_delivery_option_container).addClass('disable');
+            jQuery(elements.home_delivery_option_container).find('.right-icon-method-shipping').addClass('choice');
+        },
+        instance.enableHD = function(){
+            jQuery(elements.home_delivery_option_container).removeClass('disable');
+            jQuery(elements.home_delivery_option_container).find('.right-icon-method-shipping').removeClass('choice');
+        },
+        instance.checkStoreStockQtyChange = function (sku, callbackFunc) {
+            var deliveryOption = PET.storepickup.deliveryoption.getDeliveryOption();
+            if(currentDeliveryOption=='CC') {
+                instance.searchStores(sku, function () {
+                    instance.toggleSearchContent();
+                    initBoxCC();
+                    jQuery('#suggestor').show();
+                    if (typeof callbackFunc !== 'undefined' && jQuery.isFunction(callbackFunc)) {
+                        callbackFunc();
+                    }
+                } );
+                jQuery('.button.info.tiny.btn-view-more-stores').hide();
+                jQuery('#location-list').hide();
+            }
+        },
+        instance.showLoading = function () {
+            jQuery(elements.product_delivery_please_wait).show();
+            var count = jQuery(elements.product_delivery_please_wait).attr('data-show-count');
+            if(typeof count == 'undefined'  || count == ''){
+                count = 0;
+            }
+            var data = parseInt(count) + 1;
+            jQuery(elements.product_delivery_please_wait).attr('data-show-count', data);
+        },
+        instance.hideLoading = function () {
+            var count = jQuery(elements.product_delivery_please_wait).attr('data-show-count');
+            if(typeof count == 'undefined'  || count == ''){
+                count = 1;
+            }
+            var data = parseInt(count) - 1;
+            if(data >= 0) {
+                jQuery(elements.product_delivery_please_wait).attr('data-show-count', data);
+            }
+            if(data <= 0){
+                jQuery(elements.product_delivery_please_wait).hide();
+            }
+        }
+    function setProductVariant(sku,qty, isCommerceConnect) {
+        productVariant.sku = sku;
+        productVariant.qty = qty;
+        productVariant.isCommerceConnect = isCommerceConnect;
+    }
+    function setDeliveryHDData(postcode, city, country){
+        deliveryHDData.postcode =  postcode;
+        deliveryHDData.city = city;
+        deliveryHDData.country = country;
+    }
+    function initSlickSlider($element){
+        if(!jQuery(elements.method_shipping_container).hasClass('default')) {
+            jQuery(elements.store_stock_results).show();
+        }
+        if(!isMobile) {
+            setTimeout(function () {
+                $element.slick({
+                    dots: false,
+                    infinite: false,
+                    slidesToShow: 3,
+                    slidesToScroll: 3,
+                    nextArrow: '<a href="javascript:void(0);" class="pr-car-nav arrow-next slick-arrow " style="display: block;"></a>',
+                    prevArrow: '<a href="javascript:void(0);" class="pr-car-nav arrow-prev slick-arrow" style="display: block;"></a>'
+                });
+            }, 200);
+        }
+    }
+    function initDetailStoreCC() {
+        var $storeAvialable = jQuery('#my-store').find('.out-of-store');
+        $storeAvialable.closest('.content-method-shipping').removeClass('four-line').addClass('three-line');
+    }
+    function initBoxDetailStoreCC() {
+        var $instance = jQuery(elements.click_and_collect_option);
+        if(jQuery(elements.store_stock_results).css('display') === 'none'){
+            $instance.addClass('collapse').removeClass('expand');
+        } else {
+            $instance.addClass('expand').removeClass('collapse');
+        }
+    }
+    function initBoxCC(){
+        initDetailStoreCC();
+        initBoxDetailStoreCC();
+    }
+    function renderBoxHD(storeName){
+
+        var html = '';
+        html += '<div class="icon-method-shipping icon-truck"></div>'
+        html += '  <div class="content-method-shipping">'
+        html += ' <h3 class="title-method">Home Delivery</h3>'
+        html += '<p class="description">'
+        html += storeName
+        html += '</p>'
+        html += '</div>'
+        html +='<div class="tooltip-option-shipping">';
+        html += '<span class="tooltips-detail">';
+        html += '<strong>Home Delivery</strong>';
+        html += '<span class="content-tooltip">Not available for this product</span>'
+        html += '</span>'
+        html += '<span class="close-box-tooltip icon-close"></span>'
+        html += ' </div>'
+
+        return html;
+    }
+    function initHDAddToCartButton() {
+        if(hdClick){
+            PET.storepickupproduct.enableAddtoCart();
+            PET.storepickupproduct.enableCurrentVariants();
+        } else {
+            PET.storepickupproduct.disableAddtoCart();
+            PET.storepickupproduct.disableCurrentVariants();
+        }
+    }
+    function initCCAddToCartButton() {
+        if(ccClick){
+            PET.storepickupproduct.enableAddtoCart();
+            PET.storepickupproduct.enableCurrentVariants();
+            jQuery(elements.click_and_collect_option).find('.right-icon-method-shipping').removeClass('choice');
+        } else {
+            PET.storepickupproduct.disableAddtoCart();
+            PET.storepickupproduct.disableCurrentVariants();
+            jQuery(elements.click_and_collect_option).find('.right-icon-method-shipping').addClass('choice');
+        }
+    }
+    function initEventStoreSilder() {
+        jQuery('#location-list-ul').on('click', elements.click_and_collect_slider_item, function (e) {
+            e.preventDefault();
+
+            jQuery(elements.click_and_collect_option).find('.change-store-method-shipping').show();
+
+            var $instance = jQuery(this);
+            var link = $instance.attr('data-link');
+            var locationId = $instance.attr('data-location');
+            var stockstatus = $instance.attr('data-stock');
+            instance.setMyStore(link,locationId,stockstatus, function(data) {
+                jQuery(elements.click_and_collect_option).find('.change-store-method-shipping').show();
+
+                instance.toggleSearchContent();
+                instance.hideLoading();
+                if(jQuery(".quickview_wrapper").length == 1){
+                    jQuery(elements.click_and_collect_option).removeClass('selecting');
+                }
+                jQuery.colorbox.resize();
+            });
+            return false;
+        });
+    }
+    function createCookieCartDeliveryoption(type) {
+        NS.cookie.create('cartdeliveryoptions',type);
+    }
+    function initOptionDelivery(){
+        var $hd_container = jQuery(elements.home_delivery_option_container);
+        var $cc_container = jQuery(elements.click_and_collect_option);
+        var $parent_container = jQuery(elements.pickup_container);
+        if($hd_container.hasClass('disable') && !$cc_container.hasClass('disable')){
+            $hd_container.addClass('visited');
+            $hd_container.removeClass('checked');
+            $cc_container.addClass('checked selecting ');
+            currentDeliveryOption = 'CC';
+            //$parent_container.removeClass('default');
+        } else if(!$hd_container.hasClass('disable') && $cc_container.hasClass('disable')){
+            $cc_container.addClass('visited');
+            $cc_container.removeClass('checked');
+            $hd_container.addClass('checked selecting');
+            //$parent_container.removeClass('default');
+            currentDeliveryOption = 'HD';
+        }
+    }
+    return instance;
+})(jQuery, PET.storepickupproduct, PET.StoreSearch);
+
+
+/**
+ * Ns Checkout updated address functionality
+ * @type {*}
+ */
+NS.StorePickup = Class.create({
+    initialize: function (saveUrl) {
+        this.saveUrl = saveUrl;
+        this.onSave = this.nextStep.bindAsEventListener(this);
+        this.onComplete = this.resetLoadWaiting.bindAsEventListener(this);
+        this.bindElements();
+    },
+    bindElements: function () {
+
+    },
+    resetLoadWaiting: function () {
+        checkout.setLoadWaiting(false);
+    },
+    save: function () {
+        checkout.setLoadWaiting('pickup');
+        var params = [];
+        var request = new Ajax.Request(
+            this.saveUrl,
+            {
+                method: 'post',
+                onComplete: this.onComplete,
+                onSuccess: this.onSave,
+                onFailure: checkout.ajaxFailure.bind(checkout),
+                parameters: params
+            }
+        );
+    },
+    nextStep: function (transport) {
+
+        if (transport && transport.responseText) {
+            try {
+                response = eval('(' + transport.responseText + ')');
+            }
+            catch (e) {
+                response = {};
+            }
+        }
+        /*
+         * if there is an error in payment, need to show error message
+         */
+        if (response.error) {
+
+            if (response.fields) {
+                var fields = response.fields.split(',');
+                for (var i = 0; i < fields.length; i++) {
+                    var field = null;
+                    if (field = $(fields[i])) {
+                        Validation.ajaxError(field, response.error);
+                    }
+                }
+                return;
+            }
+            alert(response.message);
+            return;
+        }
+
+        checkout.setStepResponse(response);
+
+    }
+});
+
+(function ($) {
+    "use strict";
+
+    PET.storepickup.seo = {
+        bindElement: function () {
+            $('#store-pickup-wrapper').on('click', '#show-map', function (event) {
+                dataLayer.push({event: 'ShowMap'});
+            }).on('click', '#store-clear', function (event) {
+                var dataC = $(this).data('store');
+                dataLayer.push({event: 'clearSelection', storeName: dataC.name, postCode: dataC.postcode});
+            }).on('click', '.store-select', function (event) {
+                var dataC = $(this).data('store');
+                dataLayer.push({event: 'pinPoints', storeName: dataC.name, postCode: dataC.postcode});
+            });
+            $('#checkout-pickup').click(function (event) {
+                dataLayer.push({event: 'PickUpInfo'});
+            });
+        },
+        pushFailSelect: function (pc) {
+            $.each(quoteProduct, function (s, n) {
+                dataLayer.push({event: 'failClickCollect', productName: n, sku: s, storeName: pc});
+            });
+        }
+    };
+
+    PET.storepickupproduct.toggles = {
+        storeText: undefined,
+        inStore: undefined,
+        bindElement: function () {
+
+            var $body = jQuery("body");
+            /*
+             $body.on("change", ".recurring-option input[type='radio']", function () {
+             PET.storepickupproduct.toggles.toggleDelivery();
+             PET.storepickupproduct.toggles.toggleDeliveryQuickview();
+             })*/
+
+            $body.on("change", "#group_product", function () {
+                setTimeout(function () {
+                    jQuery.colorbox.resize();
+                }, 1000);
+            })
+
+
+        },
+
+        toggleDelivery: function (notAvailableText) {
+
+            notAvailableText = jQuery.trim(notAvailableText);
+            var initialOOSButton = jQuery('.product-size select :selected').data('oos-button');
+            var myStoreStock = parseInt(jQuery('#my-store-stock').val(), 10);
+
+            if ((initialOOSButton != undefined && initialOOSButton.length != 0) && (jQuery('.product-size select :selected').data('delivery-available') == 1)) {
+                jQuery('#product-delivery-options').hide();
+            }
+            else {
+
+                var currentID = $(".recurring-option input[type='radio']:checked").prop('id'); // get current selected ID
+
+                if (currentID === "recurring_delivery") {
+
+
+                    jQuery("#my-store , .wr-my-store-location-pc , .check-store-msg , #heavy-item , #store-stock-results").hide();
+
+                    PET.storepickupproduct.toggles.inStore = jQuery('.pickup-in-store .icon').hasClass('active');
+
+                    var $contentBody = jQuery("#pickup-in-store-content .body");
+
+                    if ($contentBody.text().trim() !== notAvailableText) {
+                        jQuery(".pickup-in-store").attr('data-delivery-text', jQuery.trim($contentBody.html()));
+                        $contentBody.html(notAvailableText);
+                    }
+
+                    jQuery("#check-stock-availability").hide();
+
+                    if (!jQuery(".pickup-in-store .icon").hasClass('active') && !jQuery(".pickup-in-store .icon").hasClass('inactive')) {
+                        jQuery(".pickup-in-store .icon").addClass('default');
+                    }
+
+                    jQuery(".pickup-in-store .icon").removeClass('active').addClass('inactive');
+
+
+
+
+                } else if (currentID === "one_delivery" || currentID === undefined) {
+
+
+                    if (jQuery(".pickup-in-store").attr('data-delivery-text') !== undefined) {
+                        jQuery("#pickup-in-store-content .body").html(jQuery(".pickup-in-store").attr('data-delivery-text'));
+                    }
+
+
+                    jQuery("#my-store , .wr-my-store-location-pc , #heavy-item , .check-store-msg , #store-stock-results").show();
+
+
+                    if (pickUpInstore) {
+                        if(jQuery.isNumeric(myStoreStock) && myStoreStock > 0) {
+                            jQuery('.pickup-in-store .icon').removeClass('inactive').addClass('active');
+                        } else {
+                            jQuery('.pickup-in-store .icon').removeClass('active').addClass('inactive');
+                        }
+
+                    } else {
+
+
+                        if (jQuery.isNumeric(myStoreStock) && myStoreStock > 0) {
+
+                            if(PET.storepickupproduct.toggles.inStore){
+                                jQuery('.pickup-in-store .icon').removeClass('inactive default').addClass('active');
+                            }else{
+                                jQuery('.pickup-in-store .icon').removeClass('active default').addClass('inactive');
+                            }
+
+
+
+
+                        } else if (jQuery('.pickup-in-store .icon').hasClass('inactive')) {
+
+
+                            jQuery('.pickup-in-store .icon').removeClass('active').addClass('inactive');
+
+                            if (jQuery(".pickup-in-store .icon").hasClass('default')) {
+                                jQuery('.pickup-in-store .icon').removeClass('active inactive');
+                            }
+
+
+                        } else {
+
+
+                            jQuery('.pickup-in-store .icon').removeClass('inactive');
+
+                            if (jQuery(".pickup-in-store .icon").hasClass('default')) {
+                                jQuery('.pickup-in-store .icon').removeClass('active inactive');
+                            }
+
+                        }
+
+
+                    }
+
+
+                    if (jQuery("#pickup-in-store-content .body").text().trim() !== notAvailableText) {
+                        jQuery(".pickup-in-store").attr('data-delivery-text', jQuery.trim(jQuery("#pickup-in-store-content .body").html()));
+                    }
+
+                    jQuery("#check-stock-availability").show();
+
+
+                }
+                jQuery('#product-delivery-options').show();
+            }
+
+            if(jQuery('#product-delivery-options').html() != ""){
+                jQuery('#product-delivery-options').show();
+            }
+
+        },
+
+        toggleDeliveryQuickview: function (notAvailableText) {
+
+            var notAvailableTextString = jQuery.trim(notAvailableText);
+
+            var initialOOSButton = jQuery('.product-size select :selected').data('oos-button');
+
+            if ((initialOOSButton != undefined && initialOOSButton.length != 0) && (jQuery('.product-size select :selected').data('delivery-available') == 1)) {
+                jQuery('#quickview-delivery-options').hide();
+            }
+            else {
+
+                var currentID = $(".recurring-option input[type='radio']:checked").prop('id'); // get current selected ID
+
+                if (currentID === "recurring_delivery") {
+
+                    PET.storepickupproduct.toggles.inStore = jQuery('.pickup-in-store .icon').hasClass('active');
+
+                    var $contentBody = jQuery("#pickup-in-store-content .body");
+
+                    if ($contentBody.text().trim() !== notAvailableTextString) {
+                        jQuery(".pickup-in-store").attr('data-delivery-text', jQuery.trim($contentBody.html()));
+                        $contentBody.html(notAvailableText);
+                    }
+
+                    jQuery("#check-stock-availability").hide();
+
+                    jQuery(".pickup-in-store .icon").removeClass('active').addClass('inactive');
+
+
+                } else if (currentID === "one_delivery" || currentID === undefined) {
+
+                    if (jQuery(".pickup-in-store").attr('data-delivery-text') !== undefined) {
+                        jQuery("#pickup-in-store-content .body").html(jQuery(".pickup-in-store").attr('data-delivery-text'));
+                    }
+
+
+                    if (jQuery("#pickup-in-store-content .body").text().trim() !== notAvailableTextString) {
+                        jQuery(".pickup-in-store").attr('data-delivery-text', jQuery.trim(jQuery("#pickup-in-store-content .body").html()));
+                        jQuery(".pickup-in-store .icon").removeClass('inactive').addClass('active');
+                    } else {
+                        jQuery(".pickup-in-store .icon").removeClass('active').addClass('inactive');
+                    }
+
+                    jQuery("#check-stock-availability").show();
+
+                }
+
+                jQuery('#quickview-delivery-options').show();
+
+            }
+
+            jQuery.colorbox.resize();
+
+
+        }
+    }
+
+    $(function () {
+        PET.storepickup.seo.bindElement();
+        PET.storepickupproduct.toggles.bindElement();
+
+    });
+
+})(jQuery);

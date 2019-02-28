@@ -1,0 +1,15 @@
+dataLayer = ( typeof dataLayer != 'undefined' && dataLayer instanceof Array ) ? dataLayer : [];
+// On ready function
+jQuery(function(){
+
+    jQuery('#search_autocomplete').on('click', 'li', function(){
+        //alert(jQuery(this).text());
+        dataLayer.push({'event': 'SearchTermPredefined', 'ClickedLink':jQuery(this).text()});
+    });
+
+    /*jQuery('.form-search').on('click', 'button', function(){
+        //alert(jQuery('#search').val());
+        dataLayer.push({'event': 'SearchTermPredefined', 'ClickedLink':jQuery('#search').val()});
+    });*/
+
+ });

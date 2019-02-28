@@ -1,0 +1,48 @@
+/**
+ * ns-jquery-library - ns.Cookie.js
+ * Created by Shabith on 4/2/15.
+ */
+
+/*global NS */
+
+"use strict";
+
+var NS = NS || {};
+
+NS.cookie = {
+
+    create: function(name, value, hours){
+        var expires;
+        var isSecure = (window.location.protocol === 'https:') ? '; secure' : '';
+        if(hours){
+            var date = new Date();
+            date.setTime(date.getTime()+(hours*60*60*1000));
+            expires = '; expires='+date.toGMTString();
+        }
+        else{
+            expires = '';
+        }
+        document.cookie = name + '=' + value + expires + '; path=/' + isSecure;
+    },
+
+    remove: function(name){
+        this.create(name, '', -1);
+    },
+
+    read: function(name){
+        var nameEQ = name + "=", _return = null;
+        var ca = document.cookie.split(';');
+        for(var i=0; i<ca.length; i++){
+            var c = ca[i];
+            while (c.charAt(0) === ' '){
+                c = c.substring(1, c.length);
+            }
+            if(c.indexOf(nameEQ) === 0){
+                _return = c.substring(nameEQ.length, c.length);
+            }
+        }
+
+        return _return;
+    }
+
+};

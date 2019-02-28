@@ -1,0 +1,477 @@
+/**
+ * Created by ISHAN on 5/30/14.
+ */
+/*jslint browser: true*/
+/*global $, jQuery, alert, console, VarienForm*/
+
+var ns_quickView = {
+    main_container: undefined,
+    quickView_container_class: undefined,
+    quickView_class: undefined,
+    detailView_class: undefined,
+    ajaxRequest: undefined,
+    addToWishlist: undefined,
+
+    init: function() {
+        this.main_container = jQuery('body');
+        this.quickView_container_class = ".quickview-buttons";
+        this.quickView_class = ".quickview";
+        this.detailView_class = ".detailview";
+
+        this.main_container.on('mouseenter mouseleave', '.item', function(event) {
+            if (event.type === 'mouseenter') {
+                /*on mouseover*/
+                ns_quickView.hoverIn(jQuery(this));
+            } else {
+                /*on mouseout*/
+                ns_quickView.hoverOut(jQuery(this));
+            }
+        });
+
+        ns_quickView.setSelectboxGotoURL.init();
+        ns_quickView.bindUIEvents.init();
+
+    },
+
+    bindUIEvents: {
+        init: function() {
+            jQuery('body').off('click', 'a.quickview', this.onClick_quickView).on('click', 'a.quickview', this.onClick_quickView);
+            // jQuery('body').on('click', '.quickview_wrapper .btn-cart, .link-wishlist', this.onClick_submit);
+            jQuery('body').on('change', 'select.size-select', this.onChange_sizeSelect);
+            jQuery('body').on('click', '.size-box li', function() {
+                jQuery(this).parent().siblings('.attr-validation-msg').hide();
+            });
+
+            /* Validation for delivery type - add to cart button */
+            jQuery('body').on('click', '.quickview_wrapper #product-addtocart-button', function (event) {
+                event.preventDefault();
+
+
+
+                if (jQuery('.quickview_wrapper input[name="recurring_delivery"]').length) {
+                    if(!jQuery('.quickview_wrapper input[name="recurring_delivery"]:checked').length) {
+                        //alert('Please select your delivery option.');
+                        jQuery('.error-message-wrapper .error-message').text('Please select your delivery option.');
+                        if(jQuery.isFunction(jQuery.colorbox)){
+                            jQuery.colorbox.resize();
+                        }
+                        return false;
+                    }else{
+                        jQuery('.product-delivery').hide();
+                    }
+                }
+
+                //Add dataLayer
+                var eventTitle = jQuery('.quickview_wrapper #product-addtocart-button').data("eventtitleqv");
+                var productName = jQuery('.quickview_wrapper #product-addtocart-button').data("productname");
+                dataLayer.push({
+                    'event': eventTitle,
+                    'productName': productName
+                });
+
+                //jQuery('.quickview_wrapper #product_addtocart_form').submit();
+                productAddToCartForm.submit(jQuery('.quickview_wrapper #product_addtocart_form')[0]);
+            });
+
+            /* .active class for selected delivery type */
+            jQuery('body').on('change', '.quickview_wrapper input[name="recurring_delivery"]', function () {
+                //remove error message if it is related to 'delivery message error'
+                jQuery('.error-message-wrapper .error-message:contains("Please select your delivery option.")').html('');
+
+                jQuery('.quickview_wrapper input[name="recurring_delivery"]')
+                    .closest('ul')
+                    .parent()
+                    .removeClass('selected')
+                    .end()
+                    .end()
+                    .filter(':checked')
+                    .closest('ul')
+                    .parent()
+                    .addClass('selected');
+            })
+                .filter(':checked')
+                .closest('ul')
+                .parent()
+                .addClass('selected');
+
+
+            /* Add review for Quickview */
+            jQuery('body').on('click', '.quickview_wrapper #add-my-review, .quickview_wrapper #see-my-review', function (event) {
+                event.preventDefault();
+                var url = jQuery('.quickview_wrapper .full-details a').attr('href') + '#open-review';
+                window.location.href = url;
+            });
+
+            /* More quickview review jilpits */
+            jQuery('body').on('click', '#see-my-review-count', function (event) {
+                event.preventDefault();
+                var href = jQuery(this).data('url');
+                if (href) {
+                    window.location.href = href + '#open-review';
+                } else {
+                    var triggerElem = jQuery('.quickview_wrapper #add-my-review, .quickview_wrapper #see-my-review');
+                    if (triggerElem.length) {
+                        triggerElem.eq(0).trigger('click');
+                    }
+                }
+
+            });
+        },
+
+        onClick_quickView: function(event) {
+            event.preventDefault();
+            var url = jQuery(this).attr('href');
+            if(!jQuery(this).hasClass('redirect')){
+                url = url+'ajax/?isAjax=1';
+            }
+            ns_quickView.loadProductQuickView(url, jQuery(this));
+
+        },
+
+        onClick_submit: function(event) {
+            event.preventDefault();
+            var $form = jQuery(this).closest('form'),
+                quickViewAddToCartForm = new VarienForm($form.attr('id'));
+
+            if (quickViewAddToCartForm.validator.validate()) {
+                if (jQuery(this).hasClass('link-wishlist')) {
+                    quickViewAddToCartForm.form.action = jQuery(this).attr('href');
+                }
+                quickViewAddToCartForm.form.submit();
+            } else {
+                $form.find('.size-box li').not('.disabled').addClass('size-error');
+
+                ns_quickView.showValidationErrors.go($form);
+            }
+
+        },
+
+        onChange_sizeSelect: function() {
+
+
+            jQuery(this).closest('form').find('select').each(function() {
+                if (jQuery(this).is(':disabled')) {
+                    jQuery(this).siblings('.nsd-drop').addClass('disabled');
+                } else {
+                    jQuery(this).siblings('.nsd-drop').removeClass('disabled');
+                }
+            });
+
+            if (jQuery(this).find(':selected').attr('value')) {
+                jQuery(this).parent().siblings('.attr-validation-msg').hide();
+
+                if (!jQuery(this).closest('.size-dd').length) {
+                    ns_quickView.checkSizeDD();
+                }
+
+                jQuery(this).closest('form').find('.size-dd .nsd-dropdown').hide();
+            } else {
+                jQuery(this).closest('form').find('.size-dd .nsd-dropdown').show();
+                jQuery(this).closest('form').find('.size-dd ol').hide();
+            }
+        },
+    },
+
+    hoverIn: function(element) {
+        /*mouse over*/
+        element.find(ns_quickView.quickView_container_class).stop().fadeIn(200);
+
+    },
+
+    hoverOut: function(element) {
+        /*mouse out*/
+        element.find(ns_quickView.quickView_container_class).stop().fadeOut(200);
+    },
+
+    loadProductQuickView: function(url, elem) {
+        var _this = this;
+
+        /*ns_quickView.showLoading();
+
+         if (this.ajaxRequest) {
+         this.ajaxRequest.abort();
+         }
+
+         if (elem.hasClass('redirect')) {
+         window.location = url;
+         } else {
+         this.ajaxRequest = jQuery.ajax({
+         type: "POST",
+         url: url,
+         success: ns_quickView.showContent
+         });
+         }
+         */
+        jQuery.colorbox({
+            href: url,
+            className: 'quick-view',
+            close: '',
+            opacity: 0.55,
+            onComplete: function(){
+                /** enable custom dropdowns **/
+                var $customDropdown = jQuery('.quick-view select.custom');
+                //disable for touch devices unless it has a specific class call 'touch-custom-dropdown' along with 'custom' class
+                if(!NS.isTouch()){
+                    $customDropdown.each(function(){
+                        jQuery(this).nsdropdown();
+                    });
+                }else{
+                    $customDropdown.each(function(){
+                        if(jQuery(this).hasClass('touch-custom-dropdown')){
+                            jQuery(this).nsdropdown();
+                        }
+                    });
+                }
+
+
+
+
+                //group product - get price from option tag and add on init and change event
+                //show default price using current selected option
+                var  $groupedProduct = jQuery('.quick-view #grouped_products');
+                var $supProdTable = jQuery('.quick-view .product-shop');
+                var priceHtmlDefault = jQuery.trim($groupedProduct.find('option:selected').data('price'));
+                $supProdTable.prepend(priceHtmlDefault);
+
+                //dynamic validation class added
+                var validateClass = $groupedProduct.find('option:selected').data('type-validate');
+                $groupedProduct.parents('.product-shop').find('.qty').val('1').removeClass('validate-integer validate-fabric validation-passed validation-failed').addClass(validateClass);
+                $groupedProduct.parents('.product-shop').find('.qty').next('.validation-advice').hide();
+                $groupedProduct.parents('.product-shop').find('.qty').on('blur', function(){
+                    setTimeout(function(){
+                        jQuery.colorbox.resize();
+                    },500);
+                })
+
+                /* TODO review this!
+                 *  Changes the name of the .qty input to reflect the selected product on page load */
+                jQuery('.quick-view .qty.grouped').attr('name', 'super_group[' + $groupedProduct.find('option:selected').val() + ']');
+
+                //on change of group product dropdown update price
+                $groupedProduct.on('change', function(){
+                    var priceHtml = jQuery.trim(jQuery(this).find('option:selected').data('price'));
+                    //remove current price
+                    jQuery('.quick-view .price-box').remove();
+                    $supProdTable.prepend(priceHtml);
+
+                    //dynamic validation class added
+                    var validateClass = $groupedProduct.find('option:selected').data('type-validate');
+                    $groupedProduct.parents('.product-shop').find('.qty').val('1').removeClass('validate-integer validate-fabric validation-passed validation-failed').addClass(validateClass);
+                    $groupedProduct.parents('.product-shop').find('.qty').next('.validation-advice').hide();
+
+                    /* TODO review this!
+                     *  Changes the name of the .qty input to reflect the selected product from the dropdown */
+                    jQuery('.quick-view .qty.grouped').attr('name', 'super_group[' + $groupedProduct.find('option:selected').val() + ']');
+                    
+                    if (typeof Afterpay != 'undefined') {
+                        Afterpay.Installments.render(true);
+                    }
+                });
+
+                var addToWishlist = jQuery('.quick-view .product-shop .add-wishlist');
+                var productId = addToWishlist.data('productid');
+
+                //check event like change, click event on input/button and resize colorbox accordingly
+                jQuery('.quick-view input, .quick-view button, .quick-view select').on('change click', function(){
+                    setTimeout(function(){
+                        if(jQuery('.vpd-container').length < 1) {
+                            jQuery.colorbox.resize();
+                        }
+                    },500);
+                });
+
+                //move download sample next to price
+                jQuery('.product-shop .price-box').after(jQuery('#download-sample'));
+
+
+                _this.setPriceRangeDisplay();
+                _this.initRecurringOption();
+                _this.initDisplayPrice();
+
+
+                //force resize colorbox after custom select box is implemented
+                setTimeout(function(){
+                    jQuery.colorbox.resize();
+                },500);
+            }
+
+        });
+    },
+
+    showLoading: function() {
+        jQuery('.loadings').show();
+    },
+
+    removeLoading: function() {
+        jQuery('.loadings').hide();
+    },
+
+    showContent: function(data) {
+        /*
+         ns_quickView.removeLoading();
+
+         this.ajaxRequest = undefined;
+         jQuery('#quickview').empty().append(data);
+         if (jQuery('.modal').is(':hidden')) {
+         jQuery('.modal').modal({keyboard: true});
+         }
+         */
+
+        ns_quickView.removeLoading();
+
+        this.ajaxRequest = undefined;
+        //for Bootstrap modal
+        /*
+         jQuery('#quickviewBootstrap').empty().append(data);
+         if (jQuery('.modal').is(':hidden')) {
+         jQuery('.modal').modal({keyboard: true});
+         }*/
+
+        //For Foundation modal
+
+        jQuery('#quickviewFoundation').empty().append(data);
+        if (jQuery('.reveal-modal').is(':hidden')) {
+            jQuery('#myModal').foundation('reveal', 'open');
+        }
+    },
+
+    setSelectboxGotoURL: {
+        init: function() {
+            jQuery('body').on('change', 'select.color-select', this.onChange);
+        },
+
+        onChange: function() {
+            var url = jQuery(this).find(':selected').attr('data-url');
+
+            ns_quickView.loadProductQuickView(url, jQuery(this));
+        }
+    },
+
+    showValidationErrors: {
+        go: function($form) {
+            var form = jQuery($form);
+            form.find('.validation-failed').each(function() {
+                form.find('.attr-validation-msg.' + jQuery(this).attr('id')).show();
+            });
+        }
+    },
+
+    checkSizeDD: function() {
+        var $select = jQuery('.size-dd .nsd-dropdown > select'),
+            ol = jQuery('<ol></ol>'),
+            li;
+
+        if ($select) {
+            $select.find('option').each(function() {
+                var $this = jQuery(this);
+                if ($this.attr('value')) {
+                    li = jQuery('<li></li>');
+
+                    li
+                        .text($this.text())
+                        .attr('onclick', "attributeOptionClick(this, '" + $this.parent().attr('id') + "', " + $this.attr('value') + ")")
+                        .addClass('prod-option-size')
+                        .css('margin-right', '5px');
+
+                    if ($this.text().length > 3) {
+                        li.addClass('wide');
+                    }
+
+                    li.appendTo(ol);
+                }
+
+            });
+
+            $select.closest('.size-dd').find('.size-box')
+                .find('ol')
+                .remove()
+                .end()
+                .prepend(ol);
+        }
+
+    },
+
+    setPriceRangeDisplay: function () {
+        var minVal;
+        var maxVal;
+        jQuery('.quickview_wrapper .product-size option').each(function () {
+            var value = parseFloat(this.id);
+            if (!minVal || minVal > value) {
+                minVal = value;
+            }
+            if (!maxVal || maxVal < value) {
+                maxVal = value;
+            }
+        });
+        if (!isNaN(minVal) && !isNaN(maxVal)) {
+            var priceRange = '$' + minVal.toFixed(2) + ' - $' + maxVal.toFixed(2);
+            jQuery('.quickview_wrapper .product-info-top-wrapper .price-info .price-box').text(priceRange);
+        }
+    },
+
+    initDisplayPrice: function () {
+        var $displayContainer = jQuery('.quickview_wrapper .product-shop .product-price-info');
+
+        var initialPrice = jQuery('.quickview_wrapper .product-size select :selected').data('price');
+        if(typeof (initialPrice) == 'undefined'){
+            initialPrice = jQuery('.quickview_wrapper .product-size select option:first').data('price');
+        }
+        $displayContainer.html(initialPrice);
+        $displayContainer.append(jQuery('.product-size select option:first').data('tier-price'));
+
+        //hide addtocart button when petbarn product OOS PET-880
+        var $addTocartContainer = jQuery('.quickview_wrapper .product-shop .add-to-cart-wrapper .add-to-box .add-to-cart');
+        var initialOOSButton = jQuery('.quickview_wrapper .product-size select :selected').data('oos-button');
+         if (NS.cookie.read('cartdeliveryoptions') != "HD") {
+            if (initialOOSButton != undefined && initialOOSButton.length != 0) {
+                $addTocartContainer.after(initialOOSButton);
+                $addTocartContainer.hide();
+            } else {
+                $addTocartContainer.show();
+            }
+        }
+
+        PET.recurring.calcTotalPriceQty();
+        jQuery('.product-size select').on('change', function () {
+            $displayContainer.html(jQuery(this).find(':selected').data('price'));
+            $displayContainer.append(jQuery(this).find(':selected').data('tier-price'));
+
+            //hide addtocart button when petbarn product OOS PET-880
+            if (NS.cookie.read('cartdeliveryoptions') != "HD") {
+                jQuery('.petbarn-out-of-stock-wrapper').hide();
+                if(jQuery(this).find(':selected').data('oos-button').length != 0)
+                {
+                    if(jQuery('.petbarn-out-of-stock-wrapper') != undefined && jQuery('.petbarn-out-of-stock-wrapper').length != 0)
+                    {
+                        jQuery('.petbarn-out-of-stock-wrapper').show()
+                    } else {
+                        $addTocartContainer.after(jQuery(this).find(':selected').data('oos-button'));
+                    }
+                    jQuery('div.nsd-dropdown div.nsd-ul li.nsdroll').addClass("disabled");
+                    $addTocartContainer.hide();
+                } else {
+                    $addTocartContainer.show();
+                }
+            }
+
+            PET.recurring.calcTotalPriceQty();
+            jQuery('.error-message-wrapper .error-message').text('');
+            if (typeof Afterpay != 'undefined') {
+                Afterpay.Installments.render(true);
+            }
+        });
+        
+        if (typeof Afterpay != 'undefined') {
+            Afterpay.Installments.render(true);
+        }
+    },
+
+    initRecurringOption: function () {
+        /* Change the delivery type */
+        jQuery('#one_delivery, #recurring_delivery').on('click', function (event) {
+            PET.recurring.calcTotalPriceQty();
+            jQuery('.error-message-wrapper .error-message').text('');
+        });
+    }
+
+};

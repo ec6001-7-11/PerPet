@@ -1,0 +1,118 @@
+/**
+ * Created by shabith on 6/27/14.
+ */
+
+"use strict";
+
+var NS = (typeof NS==='object') ? NS : {};
+
+NS.Utility = {
+
+    isTouch: function(){
+        var _isTouch = false;
+        if(typeof Modernizr!=='undefined'){
+            _isTouch = Modernizr.touch || Modernizr.touchevents;
+        }else{
+            _isTouch = 'ontouchstart' in window // works on most browsers
+                || 'onmsgesturechange' in window; // works on ie10;
+        }
+
+        return _isTouch;
+    },
+
+    whichDevice: function(){
+        var _device = {}, _type;
+        try{
+            if(typeof Foundation!=='undefined'){
+                if(Foundation.utils.is_small_only()){
+                    _type = 'small';
+                }else if(Foundation.utils.is_medium_only()){
+                    _type = 'medium';
+                }else if(Foundation.utils.is_large_only()){
+                    _type = 'large';
+                }else if(Foundation.utils.is_xlarge_only()){
+                    _type = 'xlarge';
+                }
+
+                _device = {
+                    small: Foundation.utils.is_small_only(),
+                    medium: Foundation.utils.is_medium_only(),
+                    large: Foundation.utils.is_large_only(),
+                    xlarge: Foundation.utils.is_xlarge_only(),
+                    type: _type
+                };
+
+            }
+
+
+        }catch(e){
+            console.log(e.message);
+        }
+
+        return _device;
+
+    },
+
+    orientation: function(){
+        var _orientation = {};
+        if(typeof Modernizr!=='undefined'){
+           _orientation.portrait = Modernizr.mq('(orientation: portrait)');
+           _orientation.landscape = Modernizr.mq('(orientation: landscape)');
+
+            if(Modernizr.mq('(orientation: portrait)')){
+                _orientation.type = 'portrait';
+            }else if(Modernizr.mq('(orientation: landscape)')){
+                _orientation.type = 'landscape';
+            }
+        }else{
+            _orientation.portrait = window.matchMedia('(orientation: portrait)').matches;
+            _orientation.landscape = window.matchMedia('(orientation: landscape)').matches;
+
+            if(window.matchMedia('(orientation: portrait)').matches){
+                _orientation.type = 'portrait';
+            }else if(window.matchMedia('(orientation: landscape)').matches){
+                _orientation.type = 'landscape';
+            }
+        }
+
+        return _orientation;
+    },
+
+    isRetina: function(){
+        if(typeof Modernizr!=='undefined'){
+            //Foundation with Modernizr
+            return Modernizr.mq('only screen and (-webkit-min-device-pixel-ratio: 2), only screen and (min--moz-device-pixel-ratio: 2), only screen and (-o-min-device-pixel-ratio: 2/1), only screen and (min-device-pixel-ratio: 2), only screen and (min-resolution: 192dpi), only screen and (min-resolution: 2dppx)');
+        }else{
+            var mediaQuery = "(-webkit-min-device-pixel-ratio: 1.5),\
+                      (min--moz-device-pixel-ratio: 1.5),\
+                      (-o-min-device-pixel-ratio: 3/2),\
+                      (min-resolution: 1.5dppx)";
+
+            if (window.devicePixelRatio > 1)
+                return true;
+
+            if (window.matchMedia && window.matchMedia(mediaQuery).matches)
+                return true;
+
+            return false;
+        }
+    }
+
+};
+
+jQuery(function(){
+    NS.isTouch = NS.Utility.isTouch;
+    NS.device = NS.Utility.whichDevice;
+    NS.orientation = NS.Utility.orientation;
+    NS.isRetina = NS.Utility.isRetina;
+
+    if(typeof Foundation!=='undefined'){
+        jQuery(window).on('resize', Foundation.utils.throttle(function(e){
+            var event= jQuery.Event('ns:resize');
+            event.width = jQuery(e.target).width();
+            event.height = jQuery(e.target).height();
+            jQuery(window).trigger(event);
+        }, 300));
+    }
+
+});

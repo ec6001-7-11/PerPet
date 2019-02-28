@@ -1,0 +1,6 @@
+// Foundation JavaScript
+// Documentation can be found at: http://foundation.zurb.com/docs
+jQuery(function () {
+    "use strict";
+    jQuery(document).foundation();
+});

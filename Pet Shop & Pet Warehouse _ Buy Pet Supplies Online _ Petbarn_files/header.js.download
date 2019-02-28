@@ -1,0 +1,124 @@
+/**
+ * PetBarn Omini Channel - header.js
+ * Created by Shabith on 10/7/15.
+ */
+
+/*global NS, Foundation */
+
+"use strict";
+
+var PET = PET || {};
+
+PET.header = {
+    VARS: {
+        //variables
+        $logoImage: null,
+        $myAccountBtn: undefined,
+        $myAccountWrapper: undefined,
+        $cartWrapper: undefined
+    },
+
+
+    init: function () {
+        //initialization
+        this.initVariables(false);
+        this.checkForIntegrity.init(false);
+        this.bindEvents(false);
+
+        this.resize();
+
+
+    },
+
+    initVariables: function (isAjax) {
+        this.VARS.$logoImage = jQuery('#logo-image');
+        this.VARS.$myAccountBtn = jQuery('.header-my-account-links');
+        this.VARS.$cartWrapper = jQuery('.top-cart');
+        this.VARS.$myAccountWrapper = jQuery('.account-cart-wrapper');
+
+    },
+
+    checkForIntegrity: {
+        parent: undefined,
+        init: function (isAjax) {
+            this.parent = PET.header;
+        }
+
+    },
+
+
+    bindEvents: function (isAjax) {
+        var _this = this;
+
+        jQuery(window).on('ns:resize', PET.header.resize);
+
+
+        /* My account drop down on click */
+        this.VARS.$myAccountBtn.on('click', function (event) {
+            if (!jQuery.contains(document.querySelector('.my-account-dropdown-wrapper'), event.target)) {
+
+                if (_this.VARS.$cartWrapper.length) {
+                    Enterprise.TopCart.hideCart();
+                }
+
+                var $this = jQuery(this);
+                var $divWithArrow = $this.find('.my-account-dropdown-wrapper');
+
+                if (!$divWithArrow.hasClass('open')) {
+                    $divWithArrow.addClass('open');
+                }
+
+                $this.find('.my-account-dropdown-widget')
+                    .toggleClass('open')
+                    .slideToggle(500, function () {
+                        if (!jQuery(this).hasClass('open') && $divWithArrow.hasClass('open')) {
+                            $divWithArrow.removeClass('open');
+                        }
+                    });
+            }
+        });
+
+        function hideMyAccountDropdown () {
+            var $divWithArrow = _this.VARS.$myAccountBtn.find('.my-account-dropdown-wrapper');
+            if ($divWithArrow.hasClass('open')) {
+                _this.VARS.$myAccountBtn.find('.my-account-dropdown-widget')
+                    .removeClass('open')
+                    .slideUp(500, function () {
+                        if (!jQuery(this).hasClass('open') && $divWithArrow.hasClass('open')) {
+                            $divWithArrow.removeClass('open');
+                        }
+                    });
+            }
+        }
+        /* cart drop down click */
+        this.VARS.$cartWrapper.on('click', function () {
+            hideMyAccountDropdown();
+        });
+
+        /* On clicking the body, close my-account for cart if open */
+        jQuery('body').on('click', function (event) {
+            if (_this.VARS.$myAccountWrapper.length && !jQuery.contains(_this.VARS.$myAccountWrapper[0], event.target)) {
+                hideMyAccountDropdown();
+                if (jQuery('.minicart-wrapper').length) {
+                    Enterprise.TopCart.hideCart();
+                }
+            }
+        });
+
+    },
+
+    resize: function () {
+        if(NS.device().small){
+            PET.header.VARS.$logoImage.attr('src', PET.header.VARS.$logoImage.data('small-src'));
+        }else if(NS.device().medium){
+            PET.header.VARS.$logoImage.attr('src', PET.header.VARS.$logoImage.data('medium-src'));
+        }else if(Foundation.utils.is_large_up()){
+            PET.header.VARS.$logoImage.attr('src', PET.header.VARS.$logoImage.data('large-src'));
+        }
+    }
+
+};
+
+jQuery(function () {
+    PET.header.init();
+});

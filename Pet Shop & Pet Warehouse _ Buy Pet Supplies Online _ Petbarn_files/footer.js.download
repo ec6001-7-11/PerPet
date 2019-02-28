@@ -1,0 +1,149 @@
+/**
+ * PetBarn Omini Channel - footer.js
+ * Created by Shabith on 10/7/15.
+ */
+
+/*global NS, Foundation */
+
+"use strict";
+
+var PET = PET || {};
+
+PET.footer = {
+    VAR: {
+        //variables
+        $footerCollapseLinks: null,
+        $footerAboutUsSec: null,
+        $petInfoWrapper: null,
+        fflPopupEl: null
+    },
+
+
+    init: function () {
+        //initialization
+        this.initVariables(false);
+        this.checkForIntegrity.init(false);
+        this.bindEvents(false);
+
+        //pet info carousel
+        PET.footer.VAR.$petInfoWrapper.slick({
+            centerMode: true,
+            arrows: true,
+            dots: false,
+            slidesToShow:3,
+            variableWidth: true,
+            prevArrow: jQuery('#pet-info-prev'),
+            nextArrow: jQuery('#pet-info-next'),
+            autoplay: true,
+            autoplaySpeed: 4000,
+            infinity: true,
+            initialSlide: 2,
+            draggable: true,
+            speed: 400
+        });
+
+       /* if(enabledPopup === null && NS.cookie.read('fflPopup') === null && !NS.device().small){
+            jQuery.colorbox({
+                href: this.VAR.fflPopupEl,
+                opacity:0.4,
+                inline: true,
+                fixed: true,
+                onClosed: function(){
+                    NS.cookie.create('fflPopup', true);
+                }
+
+            });
+        }*/
+
+        if(NS.cookie.read('fflPopup') === null){
+            PET.footer.VAR.$fflPopupEl.show();
+        }
+
+        jQuery('#ffl-close').click(function() {
+            NS.cookie.create('fflPopup', true);
+            PET.footer.VAR.$fflPopupEl.slideToggle();
+        });
+
+        jQuery( "#sticky-cs-content" ).click(function() {
+            jQuery("#sticky-cs-content").hide();
+        });
+
+        jQuery( "#sticky-cs-label" ).click(function() {
+            jQuery("#sticky-cs-content").show();
+        });
+
+
+        jQuery(window).scroll(function(){
+            if(jQuery(window).scrollTop() + jQuery(window).height() > jQuery(document).height() - 430) {
+                jQuery('#sticky-cs').hide();
+            }else{
+                jQuery('#sticky-cs').show();
+            }
+        });
+
+        PET.footer.VAR.$aboutUs.text("");
+        this.resize();
+
+    },
+
+    initVariables: function (isAjax) {
+        this.VAR.$footerCollapseLinks = jQuery('.footer-collapse-link');
+        this.VAR.$footerAboutUsSec = jQuery('#footer-sec-about-us');
+        this.VAR.$petInfoWrapper = jQuery('#pet-info-widget-wrapper');
+        this.VAR.$fflPopupEl = jQuery('#ffl-popup');
+        this.VAR.$aboutUs = jQuery("#footer-sec-about-us h3.footer-collapse-link");
+
+    },
+
+    checkForIntegrity: {
+        parent: undefined,
+        init: function (isAjax) {
+            this.parent = PET.footer;
+        }
+
+    },
+
+
+    bindEvents: function (isAjax) {
+
+        jQuery(window).on('ns:resize', PET.footer.resize);
+
+    },
+
+    resize: function () {
+        if (NS.Utility.whichDevice().small) {
+
+            PET.footer.VAR.$aboutUs.text("About Us");
+            PET.footer.VAR.$footerCollapseLinks.addClass('ns-collapse-active');
+
+            //remove colorbox
+            if (!jQuery('body').hasClass('checkout-onepage-index')) {
+                jQuery.colorbox.close();
+            }
+        } else {
+            PET.footer.VAR.$footerCollapseLinks.removeClass('ns-collapse-active');
+        }
+
+        if (Foundation.utils.is_large_up()) {
+            //enable foundation equalizer for about us section
+            PET.footer.VAR.$footerAboutUsSec.attr('data-equalizer-watch', '');
+
+        } else {
+            //disable foundation equalizer for about us section
+            PET.footer.VAR.$footerAboutUsSec.removeAttr('data-equalizer-watch');
+        }
+
+        jQuery(document).foundation('equalizer', 'reflow');
+    }
+
+};
+
+jQuery(function () {
+    PET.footer.init();
+});
+
+
+
+
+
+

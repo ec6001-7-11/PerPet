@@ -1,0 +1,67 @@
+/**
+ * Created by Nalinda on 3/21/15.
+ */
+
+"use strict";
+
+var NS = (typeof NS === 'object') ? NS : {};
+
+NS.scroll = {
+    VAR: {
+    },
+
+
+    /*
+     * Load loader to the page or specific object
+     * @param selector //dom element where the loader should load , it can be 'body' / div / li / etc, blank will load the loader to the body
+     * @param customClass // add custom class to the loader for custom styles
+     */
+
+    scrollTo: function (selector, offSet) {
+        offSet = offSet?offSet:0;
+        if (typeof selector === 'number') {
+            jQuery("html, body").animate({ scrollTop:selector+offSet}, 500);
+        }
+        else {
+            jQuery("html, body").animate({ scrollTop: jQuery(selector).offset().top+offSet}, 500);
+        }
+
+
+    },
+
+
+    removeLoader: function (loader) {
+
+        if (loader) {
+            jQuery(loader).find('.ns-loader-wrap').remove();
+        }
+        else {
+            jQuery('.ns-loader-wrap').remove();
+        }
+
+    }
+
+
+};
+
+
+jQuery(function(){
+
+    ////add scroll to function by data attributes
+
+    //add "data-ns-scroll-from" to the click object and add value
+    //add "data-ns-scroll-to" to the to object and add same added to the from object value
+
+
+    jQuery('body').on('click', '[data-ns-scroll-from]', function(){
+
+       var $target =  jQuery('[ data-ns-scroll-to='+jQuery(this).attr('data-ns-scroll-from')+']');
+       if($target.length){
+            jQuery("html, body").animate({ scrollTop: $target.offset().top}, 500);
+        }
+
+    });
+
+
+
+});

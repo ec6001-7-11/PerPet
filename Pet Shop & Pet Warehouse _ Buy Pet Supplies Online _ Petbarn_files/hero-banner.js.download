@@ -1,0 +1,102 @@
+/**
+ * PetBarn Omini Channel - hero-banner.js
+ * Created by Shabith on 10/15/15.
+ */
+
+/*global NS, Foundation */
+
+"use strict";
+
+var PET = PET || {};
+
+PET.heroBanner = {
+    VAR: {
+        //variables
+        $heroBanner: null,
+        featureImg: null,
+        sliderInit: false
+    },
+
+
+    init: function () {
+        //initialization
+        this.initVariables(false);
+        this.checkForIntegrity.init(false);
+        this.bindEvents(false);
+
+        Foundation.utils.image_loaded(this.VAR.$heroBanner.find('img'), function () {
+            PET.heroBanner.resize();
+            //init slick
+            PET.heroBanner.VAR.$heroBanner.on('init',function () {
+                //on initialisation
+                PET.heroBanner.VAR.sliderInit = true;
+            }).slick({
+                    dots: true,
+                    arrows: true,
+                    autoplay: true,
+                    autoplaySpeed: 5000,
+                    speed: 250,
+                    slidesToShow: 1,
+                    slidesToScroll: 1,
+                    adaptiveHeight: true,
+                    prevArrow: jQuery('#hero-banner-prev'),
+                    nextArrow: jQuery('#hero-banner-next')
+                });
+        });
+
+    },
+
+    initVariables: function (isAjax) {
+        //initialization
+        this.VAR.$heroBanner = jQuery('#hero-banner');
+        this.VAR.featureImg = '[data-feature-image]';
+
+    },
+
+    checkForIntegrity: {
+        parent: undefined,
+        init: function (isAjax) {
+            this.parent = PET.heroBanner;
+        }
+
+    },
+
+
+    bindEvents: function (isAjax) {
+        jQuery(window).on('ns:resize', PET.heroBanner.resize);
+
+    },
+
+    resize: function () {
+        /*hero banner get correct image depend on device size */
+        jQuery(PET.heroBanner.VAR.featureImg).each(function () {
+            if (NS.isRetina() && NS.device().small) {
+                //retina small
+                jQuery(this).attr('src', jQuery(this).data('retina-url'));
+            } else if (NS.device().small) {
+                //small
+                jQuery(this).attr('src', jQuery(this).data('mobi-url'));
+            } else if (NS.isRetina() && Foundation.utils.is_medium_up()) {
+                //retina medium and up
+                //TODO retina support for Medium and up devices (PHP)
+                /*** for now use desktop image ***/
+                jQuery(this).attr('src', jQuery(this).data('desk-url'));
+            } else if (Foundation.utils.is_small_up()) {
+                //medium and up
+                jQuery(this).attr('src', jQuery(this).data('desk-url'));
+            }
+        });
+
+        //re-init slider
+        if (PET.heroBanner.VAR.sliderInit) {
+            setTimeout(function () {
+                PET.heroBanner.VAR.$heroBanner.slick('setPosition');
+            },500);
+        }
+    }
+
+};
+
+jQuery(function () {
+    PET.heroBanner.init();
+});

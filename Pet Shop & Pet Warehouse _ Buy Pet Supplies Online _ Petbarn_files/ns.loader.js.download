@@ -1,0 +1,72 @@
+/*global Enterprise, CAM*/
+/**
+ * Created by Nalinda on 3/21/15.
+ */
+
+"use strict";
+
+var NS = (typeof NS==='object') ? NS : {};
+
+NS.Loader = {
+    VAR : {
+    },
+
+
+    /*
+     * Load loader to the page or specific object
+     * @param selector //dom element where the loader should load , it can be 'body' / div / li / etc, blank will load the loader to the body
+     * @param customClass // add custom class to the loader for custom styles
+     */
+
+    showLoader: function (selector, customClass,customHtml) {
+        
+
+        //add custom class for the loader
+        var cclass = customClass?customClass:"";
+
+        //get the element to add the loader
+        var parentElm =  selector ? jQuery(selector): jQuery('body');
+        //boolean for full page loader
+        var fullbody = selector?false:true;
+        
+        var bwidth =  parentElm.outerWidth(true);
+        var bheight = parentElm.outerHeight(true);
+
+        var htmlBlock = customHtml?customHtml:"";
+
+        //add class for loaders inside the internal objects
+        if(!fullbody)  cclass += " ns-loader-internal";
+
+         var wrapper = jQuery('<div class="ns-loader-wrap '+cclass+'"><span class="ns-loader" >'+htmlBlock+'</span></div>');
+
+        parentElm.append(wrapper);
+
+        //middle the loader content
+
+        var $loader = wrapper.find('.ns-loader');
+        var $wrapper = wrapper;
+
+        $loader.css("margin-left",($loader.width()/-2)+"px");
+        $loader.css("margin-top",($loader.height()/-2)+"px");
+
+
+
+    },
+
+
+    removeLoader: function(loader){
+
+        if(loader)
+        {
+            jQuery(loader).find('.ns-loader-wrap').remove();
+        }
+        else
+        {
+            jQuery('.ns-loader-wrap').remove();
+        }
+
+    }
+
+
+
+};

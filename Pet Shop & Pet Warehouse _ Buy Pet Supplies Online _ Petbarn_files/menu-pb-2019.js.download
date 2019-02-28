@@ -1,0 +1,73 @@
+/**
+ * New Home Page JS
+ * Created by Robin on 18/12/2018.
+ */
+"use strict";
+
+//brand carousels
+var PET = PET || {};
+
+PET.menuToggle = {
+    VAR: {
+        //variables
+
+    },
+    //this.VAR.$footerCollapseLinks = jQuery('.footer-collapse-link');
+
+    init: function(){
+        //this.VAR.homeBrandCarousel.each(function () {
+            //var $this = jQuery(this);
+        //});
+
+        var $this = jQuery(this);
+        var $hamMenuContainer = jQuery('.hamburger-menu');
+        var $menuContainer = jQuery('.nav-container');
+        var $containerWrapper = jQuery(".nav-container-wrapper");
+        var $searchToggle = jQuery(".header-container .header .account-cart-wrapper .search-link");
+        var $searchToggleContent =  jQuery(".form-search");
+        var $windowSize = jQuery( window ).width();
+        var $navOverlay =  jQuery("#nav-container-overlay");
+
+      //  nav-container
+
+
+
+        $hamMenuContainer.click(function() {
+          // var $navContainer  = jQuery('.nav-container');
+
+            if( $menuContainer.is(':hidden') ){
+                $menuContainer.show().delay( 500 );
+                $containerWrapper.show().animate({"left": '0'});
+                $hamMenuContainer.addClass("menuVisible");
+            }
+            else{
+                $hamMenuContainer.removeClass("menuVisible");
+                $containerWrapper.animate({"left": '-270'});
+                $menuContainer.delay( 500 ).hide(0);
+            }
+        });
+
+
+        $searchToggle.click(function() {
+            $searchToggleContent.slideToggle();
+        });
+       // console.log($windowSize);
+
+        if($windowSize <= 767 ){
+
+            $navOverlay.click(function() {
+                $hamMenuContainer.removeClass("menuVisible");
+                $containerWrapper.animate({"left": '-270'});
+                $menuContainer.delay( 500 ).hide(0);
+            });
+        }
+
+
+    }
+
+};
+
+
+jQuery(function(){
+    PET.menuToggle.init();
+});

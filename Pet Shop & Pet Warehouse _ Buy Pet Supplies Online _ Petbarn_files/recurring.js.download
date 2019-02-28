@@ -1,0 +1,111 @@
+/**
+ * Created by hlasith on 12/29/15.
+ */
+
+var PET = PET || {};
+
+PET.recurring = {
+
+    calcTotalPriceQty: function () {
+
+        /* The element with all the info */
+        var qtyBox = jQuery('#qty');
+
+        /* Get the data needed */
+        var price = parseFloat(this.getDollerValue(jQuery('.product-shop .price-box .regular-price .price').text()));
+        var oldPrice = parseFloat(this.getDollerValue(jQuery('.product-shop .price-box .old-price .price').text()));
+        oldPrice = isNaN(oldPrice)?price:oldPrice;
+        var discountAmount = jQuery('#recurring_delivery').attr('data-discount');
+        var itemDiscount = 100 - (price / oldPrice * 100);
+        var discountedPrice = 0;
+        qtyBox.attr('item-discount', itemDiscount.toFixed(2));
+        qtyBox.attr('discount-amount', discountAmount);
+
+        if (itemDiscount < discountAmount) {
+            /* If the discount is lower than the Reacurring discount */
+            itemDiscount = discountAmount;
+            discountedPrice = oldPrice - oldPrice * discountAmount / 100;
+        } else {
+            discountedPrice = price;
+        }
+
+
+        /* Check for tier pricing */
+        var tierElem = jQuery('.product-shop .tier-prices.product-pricing .tier-price');
+        if (tierElem.length) {
+
+            var tierMinQty = tierElem.data('tier-qty');
+            var tierPrice = tierElem.data('tier-price');
+
+            if (qtyBox.val() >= tierMinQty) {
+                discountedPrice = tierPrice;
+            }
+        }
+
+        /* Save the calculated amounts to the element */
+        qtyBox.attr('new-price', discountedPrice);
+
+
+
+        /* Render */
+        this.renderAmounts();
+    },
+
+    getDollerValue: function (amount) {
+        var dollerVal = amount.replace("$", "");
+        return dollerVal.trim();
+    },
+
+    renderAmounts: function () {
+        var totalQty = 0;
+        var totalPrice = 0;
+        var couldSaveWithReac = 0;
+
+        /* Check if it's a recurring delivery */
+        var recurring = jQuery('#recurring_delivery').is(':checked');
+
+        /* For each product, calculate discounts, etc, and add it to the total. */
+
+        var input = jQuery('#qty');
+        var price = parseFloat(this.getDollerValue(jQuery('.product-shop .price-box .regular-price .price').text()));
+        var oldPrice = parseFloat(this.getDollerValue(jQuery('.product-shop .price-box .old-price .price').text()));
+        oldPrice = isNaN(oldPrice)?price:oldPrice;
+        var newPrice = input.attr('new-price');
+        var discountAmount = input.attr('discount-amount');
+        var itemDiscount =    input.attr('item-discount');
+        var hasTierPrice = jQuery('.product-shop .tier-prices.product-pricing .tier-price').length;
+
+        totalQty += isNaN(parseInt(input.val())) ? 0 : parseInt(input.val());
+
+        if (recurring || hasTierPrice) {
+            totalPrice += parseFloat(newPrice) * input.val();
+        } else {
+            totalPrice += price * input.val();
+        }
+
+        var recurring_discount = price * discountAmount/100;
+        var rule_discount = oldPrice * itemDiscount/100;
+
+        if (!recurring) {
+            if (!hasTierPrice) {
+               // couldSaveWithReac += (parseFloat(oldPrice - newPrice) * input.val()) - (parseFloat(oldPrice - price) * input.val());
+                if(recurring_discount > rule_discount){
+                    couldSaveWithReac += recurring_discount - rule_discount;
+                }
+            }
+        }
+
+        /* Set the value and visibility of the 'you could save xx' text. */
+        jQuery('#you-could-save-tag .savings').text('$' + (couldSaveWithReac * parseInt(jQuery('#qty').val(), 10)).toFixed(2));
+        /* Hide it if it's a recurring order or the savings are 0 */
+        if (recurring || couldSaveWithReac.toFixed(2) === "0.00") {
+            jQuery('#you-could-save-tag').hide();
+        } else {
+            /* selected recurring option */
+            var selected = jQuery("input[type='radio'][id='one_delivery']:checked");
+            if (selected.length > 0) {
+                jQuery('#you-could-save-tag').show();
+            }
+        }
+    }
+};

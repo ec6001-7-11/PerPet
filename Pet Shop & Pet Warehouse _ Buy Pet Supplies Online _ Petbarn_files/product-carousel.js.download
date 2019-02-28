@@ -1,0 +1,87 @@
+/**
+ * PetBarn Omini Channel - product-carousel.js
+ * Created by Shabith on 10/15/15.
+ */
+
+/*global NS */
+
+"use strict";
+
+var PET = PET || {};
+
+PET.productCarousel = {
+    VAR: {
+        //variables
+        $productCarousel: null
+    },
+
+
+    init: function () {
+        //initialization
+        this.initVariables(false);
+        this.checkForIntegrity.init(false);
+        this.bindEvents(false);
+
+        this.VAR.$productCarousel.each(function () {
+            var $this = jQuery(this);
+
+            var slidesToShow = 5;
+            if (jQuery('body').hasClass('cms-home')) {
+                slidesToShow = 4;
+            } else if (jQuery('body').hasClass('catalog-category-view')) {
+                slidesToShow = 3;
+            }
+
+            $this.slick({
+                prevArrow: $this.siblings('.pr-car-nav.arrow-prev'),
+                nextArrow: $this.siblings('.pr-car-nav.arrow-next'),
+                infinite: false,
+                slidesToShow: slidesToShow,
+                slidesToScroll: jQuery('body').hasClass('cms-home') ? 4 : 1,
+                responsive: [
+                    {
+                        breakpoint: 1024,
+                        settings: {
+                            slidesToScroll: 1,
+                            slidesToShow: 4
+                        }
+
+                    },
+                    {
+                        breakpoint: 768,
+                        settings: {
+                            slidesToScroll: 1,
+                            slidesToShow: 2
+                        }
+
+                    }
+                ]
+            });
+        });
+
+    },
+
+    initVariables: function (isAjax) {
+        this.VAR.$productCarousel = jQuery('.product-carousel');
+
+    },
+
+    checkForIntegrity: {
+        parent: undefined,
+        init: function (isAjax) {
+            this.parent = PET.productCarousel;
+        }
+
+    },
+
+
+    bindEvents: function (isAjax) {
+
+
+    }
+
+};
+
+jQuery(function () {
+    PET.productCarousel.init();
+});

@@ -1,0 +1,265 @@
+/**
+ * PetBarn Omini Channel - navigation.js
+ * Created by Shabith on 10/16/15.
+ */
+
+/*global NS, Foundation */
+
+"use strict";
+
+var PET = PET || {};
+
+PET.navigation = {
+    VAR: {
+        //variables
+        $nav: null,
+        $navContainer: null,
+        $navOverlay: null,
+        $submenuOther: null,
+        $servicesMenu: null
+    },
+
+
+    init: function () {
+        //initialization
+        this.initVariables(false);
+        this.checkForIntegrity.init(false);
+        this.bindEvents(false);
+
+        //navigation hover effect
+        this.VAR.$nav.hoverIntent({
+            over: this.menu.over,
+            out: this.menu.out,
+            selector: 'li.level-top',
+            timeout: 250
+           // sensitivity: 1,
+           // interval: 1
+
+        });
+
+        //services mobile menu
+        this.VAR.$servicesMenu
+            .on('click', function(e){
+                //prevent default click event in small devices
+               if(Foundation.utils.is_small_only()) { e.preventDefault(); }
+            })
+            .on('ns:collapse.openComplete', PET.navigation.servicesMenu.onOpen)
+            .on('ns:collapse.closeComplete', PET.navigation.servicesMenu.onClose);
+
+        //navigation click
+        this.VAR.$nav.on('click','li.level-top', this.menu.click);
+
+        this.resize();
+
+        // removing empty elements from top navigation menu - PET-1433
+        jQuery('.nav-container-wrapper .submenu-list ul').each(function(){
+            if (jQuery(this).children().length === 0){
+                jQuery(this).remove();
+            }
+         });
+    },
+
+    initVariables: function (isAjax) {
+        this.VAR.$nav = jQuery('#nav');
+        this.VAR.$navContainer = jQuery('.nav-container');
+        this.VAR.$navOverlay = jQuery('#nav-container-overlay');
+        this.VAR.$submenuOther = jQuery('#submenu-other');
+        this.VAR.$servicesMenu = jQuery('#service-link');
+
+    },
+
+    menu: {
+        over: function (event) {
+            //for medium and up devices
+            if(!NS.Utility.isTouch()){
+                //get parent li
+                var $targetParent = (jQuery(event.target).hasClass('level-top') && jQuery(event.target).hasClass('level0')) ? jQuery(event.target) : jQuery(event.target).parents('li.level0');
+                $targetParent.addClass('hover');
+
+                //support for css hack
+                //on category 2 (cat) hover add a class to category 4 (fish)
+                if($targetParent.hasClass('nav-2')){
+                    $targetParent.siblings('.nav-3').addClass('hover-nav-2');
+                }
+
+                PET.navigation.VAR.$navContainer.addClass('open');
+                //show navigation
+                $targetParent.find('.submenu-container').show();
+                $targetParent.data('subOpen', true);
+                //clear setTimeOut
+                clearTimeout($targetParent.data('outTimer'));
+
+                //reflow foundation equalizer
+                jQuery(document).foundation('equalizer', 'reflow');
+            }
+
+
+        },
+
+        out: function (event) {
+            //for medium and up devices
+           if(!NS.Utility.isTouch()){
+               //get parent li
+               var $targetParent = (jQuery(event.target).hasClass('level-top') && jQuery(event.target).hasClass('level0')) ? jQuery(event.target) : jQuery(event.target).parents('li.level0');
+
+               //give a time out and delay hide
+            //   var $outTimer = setTimeout(function () {
+                   PET.navigation.menu.close($targetParent);
+             //  }, 300);
+
+             //  $targetParent.data('outTimer', $outTimer);
+           }
+
+        },
+
+        close: function ($targetParent) {
+            PET.navigation.VAR.$navContainer.removeClass('open');
+            $targetParent.removeClass('selected').removeClass('hover');
+            //support for css hack
+            //on category 2 (cat) hover out remove the class from category 4 (fish)
+            if($targetParent.hasClass('nav-2')){
+                $targetParent.siblings('.nav-3').removeClass('hover-nav-2');
+            }
+            //hide submenu content
+            $targetParent.find('.submenu-container:first').hide();
+            $targetParent.data('subOpen', false);
+        },
+
+        click: function(event){
+            //console.log(event.target);
+            var otherSubMenuOpen = false;
+            // if it is small device
+            if(NS.Utility.isTouch()){
+                var $target = jQuery(event.target);
+                var $currentTarget = jQuery(event.currentTarget);
+                //if it is in 'other sub category'
+                if($target.parents('.mobile-other-link').length>0){
+
+                    event.stopPropagation();
+                    //check if 'other sub category' is open
+                    otherSubMenuOpen = $currentTarget.hasClass('selected');
+                    if(!$target.hasClass('arrow') && !$currentTarget.hasClass('mobile-other-link')){
+                        //act as default, as a link;
+                        return;
+                    }
+                }
+
+                //if it is a normal link in first 2 section (dog or cat)
+                if(!$target.parents('.level-top').hasClass('mobile-other-link') && !$target.closest('a').hasClass('level-top')){
+                    return;
+                }
+
+                event.preventDefault();
+                //remove already open menu
+                var curOpen = PET.navigation.VAR.$nav.find('.level0.selected, .level0.hover');
+                //if sub menu is already open, close it.
+                if(curOpen.filter(':last')[0] === event.currentTarget && curOpen.filter(':last').data('subOpen')){
+                    PET.navigation.menu.close(curOpen.filter(':last'));
+                    return false;
+                }
+
+                //close services menu, if it is open
+                PET.navigation.servicesMenu.onClose(true);
+
+
+                //get parent li
+                var $targetParent = (jQuery(event.target).hasClass('level-top') && jQuery(event.target).hasClass('level0')) ? jQuery(event.target) : jQuery(event.target).parents('li.level0');
+
+                //if there is other submenu open, close them first.
+                if(curOpen.length>0){
+                    PET.navigation.menu.close(curOpen.filter(':last'));
+                    //if it is a other > sub section, close other section as well
+                    if($targetParent.parents('.mobile-other-link').length===0){
+                        PET.navigation.menu.close(PET.navigation.VAR.$nav.find('.mobile-other-link'));
+                    }
+                }
+                //console.log($currentTarget.parents('.mobile-other-link').length);
+
+                //if 'other sub category' is open, close it and do nothing
+                if($currentTarget.parents('.mobile-other-link').length>0 && otherSubMenuOpen){
+                    return false;
+                }
+
+                $targetParent.addClass('hover').addClass('selected');
+                //enable overlay
+                PET.navigation.VAR.$navContainer.addClass('open');
+                $targetParent.find('.submenu-container:first').show();
+                $targetParent.filter(':last').data('subOpen', true);
+
+            }
+        }
+    },
+
+    servicesMenu: {
+        onClose: function(forceClose){
+                if(typeof forceClose === "boolean"){
+                    if(forceClose){
+                        PET.navigation.VAR.$servicesMenu.removeClass('active');
+                        jQuery(PET.navigation.VAR.$servicesMenu.data('target')).removeClass('active').hide();
+                    }
+                }
+            PET.navigation.VAR.$navContainer.removeClass('open');
+        },
+        onOpen: function(e){
+            // close main menu items if they are already opn
+            var curOpen = PET.navigation.VAR.$nav.find('.level0.selected, .level0.hover');
+            if(curOpen.length > 0){
+                curOpen.each(function(){
+                    PET.navigation.menu.close(jQuery(this));
+                });
+               // PET.navigation.menu.close(curOpen.filter(':last'));
+            }
+
+            PET.navigation.VAR.$navContainer.addClass('open');
+        }
+    },
+
+    resize: function(){
+        if(NS.device().small){
+            //for small devices
+            var otherContent = PET.navigation.VAR.$nav.find('li.level0.level-top').slice(3);
+            PET.navigation.VAR.$submenuOther.append(otherContent);
+        }else{
+            //for medium and up
+            PET.navigation.VAR.$nav.append(PET.navigation.VAR.$submenuOther.html());
+            PET.navigation.VAR.$submenuOther.html('');
+        }
+
+        //set overlay height
+        PET.navigation.VAR.$navOverlay.height(jQuery(document).height());
+    },
+
+
+    checkForIntegrity: {
+        parent: undefined,
+        init: function (isAjax) {
+            this.parent = PET.navigation;
+
+        }
+
+    },
+
+
+    bindEvents: function (isAjax) {
+
+//        this.VAR.$nav.find('li.level-top').on('click', function () {
+//            PET.navigation.VAR.$nav.find('li.selected.level-top').removeClass('selected');
+//            jQuery(this).addClass('selected');
+//        });
+
+        //on navigation overlay click, hide sub-nav
+        this.VAR.$navOverlay.on('click', function () {
+            var $targetParent = PET.navigation.VAR.$nav.find('li.level0.hover,li.level0.selected');
+            PET.navigation.menu.close($targetParent);
+            PET.navigation.servicesMenu.onClose(true);
+        });
+
+        jQuery(window).on('ns:resize', PET.navigation.resize);
+
+    }
+
+};
+
+jQuery(function () {
+    PET.navigation.init();
+});

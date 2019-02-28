@@ -1,0 +1,374 @@
+/**
+ * New Home Page JS
+ * Created by Robin on 18/12/2018.
+ */
+"use strict";
+
+//brand carousels
+var PET = PET || {};
+
+PET.homeBrandCarousel = {
+    VAR: {
+        //variables
+        homeBrandCarousel: null
+    },
+
+
+    init: function() {
+        //initialization
+        this.initVariables(false);
+        this.checkForIntegrity.init(false);
+        this.bindEvents(false);
+
+        this.VAR.homeBrandCarousel.each(function() {
+            var $this = jQuery(this);
+            var $thisParent = jQuery(this).parent('.abb-brandslist');
+
+            $this.slick({
+                prevArrow: $thisParent.find('.hbc-car-nav.arrow-prev'),
+                nextArrow: $thisParent.find('.hbc-car-nav.arrow-next'),
+                infinite: true,
+                slidesToShow: 4,
+                slidesToScroll: 1,
+                autoplay: true,
+                autoplaySpeed: 3000,
+
+                responsive: [{
+                        breakpoint: 900,
+                        settings: {
+                            slidesToScroll: 1,
+                            slidesToShow: 2,
+                            autoplay: true,
+                            autoplaySpeed: 3000
+                        }
+                    },
+
+                    {
+                        breakpoint: 768,
+                        settings: {
+                            slidesToScroll: 1,
+                            slidesToShow: 1,
+                            autoplay: true,
+                            autoplaySpeed: 3000
+                        }
+                    },
+
+                    {
+                        breakpoint: 480,
+                        settings: {
+                            slidesToScroll: 1,
+                            slidesToShow: 1,
+                            autoplay: true,
+                            autoplaySpeed: 3000
+                        }
+                    }
+                ]
+            });
+        });
+
+    },
+
+    initVariables: function(isAjax) {
+        this.VAR.homeBrandCarousel = jQuery('.abb-brandslist > ul');
+    },
+
+    checkForIntegrity: {
+        parent: undefined,
+        init: function(isAjax) {
+            this.parent = PET.homeBrandCarousel;
+        }
+
+    },
+
+    bindEvents: function(isAjax) {
+
+    }
+
+};
+
+
+PET.homeFeaturesCarousel = {
+    VAR: {
+        //variables
+        homeFeaturesCarousel: null
+    },
+
+
+    init: function() {
+        //initialization
+        this.initVariables(false);
+        this.checkForIntegrity.init(false);
+        this.bindEvents(false);
+
+        this.VAR.homeFeaturesCarousel.each(function() {
+            var $this = jQuery(this);
+            var $thisParent = jQuery(this).parent('.homepage-feature-lists');
+
+            var $thisCounter = $(".hfl-slide-counters");
+            var $totalSlider = jQuery(".homepage-feature-lists li").length;
+
+
+            $this.slick({
+                prevArrow: $thisParent.find('.hfl-car-nav.arrow-prev'),
+                nextArrow: $thisParent.find('.hfl-car-nav.arrow-next'),
+                infinite: true,
+                slidesToShow: 1,
+                slidesToScroll: 1,
+                autoplay: true,
+                autoplaySpeed: 5000,
+
+                responsive: [{
+                        breakpoint: 900,
+                        settings: {
+                            slidesToScroll: 1,
+                            slidesToShow: 1,
+                            autoplay: true,
+                            autoplaySpeed: 3000
+                        }
+                    },
+
+                    {
+                        breakpoint: 768,
+                        settings: {
+                            slidesToScroll: 1,
+                            slidesToShow: 1,
+                            autoplay: true,
+                            autoplaySpeed: 3000
+                        }
+                    },
+
+                    {
+                        breakpoint: 480,
+                        settings: {
+                            slidesToScroll: 1,
+                            slidesToShow: 1,
+                            autoplay: true,
+                            autoplaySpeed: 3000
+                        }
+                    }
+                ]
+            });
+
+            jQuery(".counter-number").text($totalSlider);
+
+            $thisParent.on('init beforeChange', function(event, slick, currentSlide, nextSlide) {
+                var currentSliderNumber = Number(nextSlide + 1);
+                jQuery(".current-number").text(currentSliderNumber);
+            });
+
+        });
+
+
+    },
+
+    initVariables: function(isAjax) {
+        this.VAR.homeFeaturesCarousel = jQuery('.homepage-feature-lists > ul');
+    },
+
+    checkForIntegrity: {
+        parent: undefined,
+        init: function(isAjax) {
+            this.parent = PET.homeFeaturesCarousel;
+        }
+
+    },
+
+    bindEvents: function(isAjax) {
+
+    }
+
+};
+
+
+PET.articlesCarousel = {
+    VAR: {
+        //variables
+        articlesCarousel: null
+    },
+
+
+    init: function() {
+        //initialization
+        this.initVariables(false);
+        this.checkForIntegrity.init(false);
+        this.bindEvents(false);
+
+        this.VAR.articlesCarousel.each(function() {
+            var $this = jQuery(this);
+            var $thisParent = jQuery(this).parent('.homepage-popular-articles');
+
+            $this.slick({
+                infinite: true,
+                mobileFirst: true,
+                arrows: false,
+                dots: false,
+                variableWidth: true,
+                responsive: [{
+                    breakpoint: 767,
+                    settings: "unslick"
+                }]
+            });
+        });
+
+    },
+
+    initVariables: function(isAjax) {
+        this.VAR.articlesCarousel = jQuery('.homepage-popular-articles > ul');
+    },
+
+    checkForIntegrity: {
+        parent: undefined,
+        init: function(isAjax) {
+            this.parent = PET.articlesCarousel;
+        }
+
+    },
+
+    bindEvents: function(isAjax) {
+
+    },
+
+    resizeWindow: function() {
+        jQuery(window).on('resize', function() {
+            jQuery('.homepage-popular-articles > ul').slick('resize');
+        });
+    },
+
+};
+
+PET.animateHero = {
+
+    init: function() {
+        this.toggleAnimate();
+    },
+
+    toggleAnimate: function() {
+       var $catWrapper = jQuery('.left-bottom');
+        var $catImg = jQuery('.left-bottom').find("img");
+        var $dogWrapper = jQuery('.right-bottom');
+        var $dogImg = jQuery('.right-bottom').find("img");
+
+        var $dogsrc_Original = $dogImg.attr("src");
+        var $catsrc_Original = $catImg.attr("src");
+
+      //  var $dogsrc = "skin/frontend/enterprise/petbarn/images/hero/hero_dog.gif";
+        //var $catsrc = "skin/frontend/enterprise/petbarn/images/hero/hero_cat.gif";
+
+        var $bgWrapper = jQuery('.pbb-home-hero');
+
+        jQuery(".right-bottom, .home-hero-main").click(function() {
+            rightBottom();
+        });
+
+        jQuery(".left-bottom").click(function() {
+            //leftBottom();
+        });
+
+        function rightBottom(){
+            jQuery(".right-bottom").hide(0);
+            $catImg.attr("src", $catsrc_Original);
+            $dogImg.attr("src", "");
+            $catWrapper.delay(200).slideToggle();
+            $bgWrapper.toggleClass("pb-grey-bg");
+            setTimeout(leftBottom, 4000);
+        }
+
+        function leftBottom(){
+            jQuery(".left-bottom").hide(0);
+            $catImg.attr("src", "");
+            $dogImg.delay(200).attr("src", $dogsrc_Original);
+            $dogWrapper.delay(2000).slideToggle();
+            $bgWrapper.removeClass("pb-grey-bg");
+        }
+
+
+    }
+};
+
+PET.animateArticles = {
+    init: function() {
+        this.ifVisibleArticles();
+        this.ifVisibleCategories();
+    },
+
+    ifVisibleArticles:function () {
+        var windowHeight = jQuery(window).innerHeight();
+        var currentPostion = jQuery('.homepage-popular-articles').offset().top;
+        var elements = document.querySelectorAll('.homepage-popular-articles li');
+
+        if(windowHeight >= currentPostion){
+            anime({
+                targets: elements,
+                translateY: -25,
+                opacity: 1,
+                delay: anime.stagger(250, {
+                    start: 300,
+                })
+            });
+        }
+
+        else{
+            jQuery(window).scroll(function() {
+                var refernceDiv = jQuery('.homepage-two-promos').offset().top;
+                var windowTop = jQuery(window).scrollTop();
+                var referenceTop = refernceDiv - windowTop;
+                if (referenceTop <= 100) {
+                    anime({
+                        targets: elements,
+                        translateY: -25,
+                        opacity: 1,
+                        delay: anime.stagger(250, {
+                            start: 100,
+                        })
+                    });
+                }
+            });
+        }
+
+    },
+
+    ifVisibleCategories:function () {
+        var windowHeightCat = jQuery(window).innerHeight();
+        var currentPostionCat = jQuery('.homepage-categories').offset().top;
+        var elementsCat = document.querySelectorAll('.homepage-categories li');
+
+        if(windowHeightCat  >= currentPostionCat){
+            anime({
+                targets: elementsCat,
+                translateY: 10,
+                opacity: 1,
+                delay: anime.stagger(250, {
+                    start: 100,
+                })
+            });
+        }
+
+        else{
+            jQuery(window).scroll(function() {
+                var refernceDivCat = jQuery('.homepage-feature-lists').offset().top;
+                var windowTopCat = jQuery(window).scrollTop();
+                var referenceTopCat = refernceDivCat - windowTopCat;
+              //  console.log(referenceTopCat);
+                if (referenceTopCat <= 100) {
+                    anime({
+                        targets: elementsCat,
+                        translateY: 10,
+                        opacity: 1,
+                        delay: anime.stagger(500, {
+                            start: 100,
+                        })
+                    });
+                }
+            });
+        }
+
+    }
+};
+
+jQuery(function() {
+    PET.homeBrandCarousel.init();
+    PET.homeFeaturesCarousel.init();
+    PET.articlesCarousel.init();
+    PET.articlesCarousel.resizeWindow();
+    PET.animateHero.init();
+});

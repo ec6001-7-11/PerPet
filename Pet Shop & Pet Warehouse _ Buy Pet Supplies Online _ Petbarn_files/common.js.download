@@ -1,0 +1,236 @@
+/**
+ * PetBarn Omini Channel - common.js
+ * Created by Shabith on 10/7/15.
+ */
+
+/*global NS */
+
+"use strict";
+
+var PET = PET || {};
+
+PET.common = {
+    VAR: {
+        //variables
+        $customDropdown: null,
+        $cmsMobileCollapseMenu: null
+    },
+
+
+    init: function () {
+        //initialization
+        this.initVariables(false);
+        this.checkForIntegrity.init(false);
+        this.bindEvents(false);
+
+        //disable for touch devices unless it has a specific class call 'touch-custom-dropdown' along with 'custom' class
+        if (!NS.isTouch()) {
+            this.VAR.$customDropdown.each(function () {
+                jQuery(this).nsdropdown();
+            });
+        } else {
+            this.VAR.$customDropdown.each(function () {
+                if (jQuery(this).hasClass('touch-custom-dropdown')) {
+                    jQuery(this).nsdropdown();
+                }
+            });
+        }
+
+        this.resize();
+        this.resetPageTitle();
+        this.passwordHint();
+        this.preventSubmitTwice();
+    },
+
+    initVariables: function (isAjax) {
+        this.VAR.$customDropdown = jQuery('select.custom');
+        this.VAR.$cmsMobileCollapseMenu = jQuery('.cms-mobile-collapse-menu');
+
+
+    },
+
+    cmsCollapseMenu: {
+
+        resize: function () {
+            if (NS.device().small) {
+                PET.common.VAR.$cmsMobileCollapseMenu.addClass('ns-collapse-active');
+            } else {
+                PET.common.VAR.$cmsMobileCollapseMenu.removeClass('ns-collapse-active');
+            }
+        }
+    },
+
+    passwordHint: function(){
+        jQuery(".form-list.has-password-hint #confirmation, .form-list.has-password-hint #password").on("keypress", function(event){
+            // deny space input
+            if(event.which == '32') {
+                return false;
+            }
+        });
+
+        // keyup event check input password and confirm password
+        var _confirmPassword = jQuery('.form-list.has-password-hint #confirmation');
+        var _pwdHint = jQuery('.form-list.has-password-hint .field .validate-info');
+
+        jQuery(document).on("paste", ".form-list.has-password-hint #password", function(event){
+            event.stopPropagation();
+            setTimeout(function () {
+                var _this = jQuery(".form-list.has-password-hint #password");
+                var self = _this.val().replace(/\s+/g, '');
+                _this.val(self).change();
+                // detect when input value
+                detectPasswordHint(self,_pwdHint);
+                // clear confirm pwd while has value
+                triggerReinputPassword(_confirmPassword);
+            }, 1);
+        });
+
+        jQuery(".form-list.has-password-hint #password").on("keyup", function(event){
+            var _this = jQuery(this).val();
+            // detect when input value
+            detectPasswordHint(_this,_pwdHint);
+            // clear confirm pwd while has value
+            triggerReinputPassword(_confirmPassword);
+
+        });
+
+
+        function detectPasswordHint(value,pwdHint){
+            var checkLetter = pwdHint.find('.pwd-letter');
+            var checkNumber = pwdHint.find('.pwd-number');
+            var checkSpecial = pwdHint.find('.pwd-special');
+            var checkPassLength = pwdHint.find('.pwd-atleast');
+
+            // detect password hint
+            value.match(/[a-zA-Z]/) ? checkLetter.addClass('match') : checkLetter.removeClass('match'); // detect letter
+            value.match(/\d/) ? checkNumber.addClass('match') : checkNumber.removeClass('match'); // detect number
+            value.match(/[^\w\s]/) ? checkSpecial.addClass('match') : checkSpecial.removeClass('match'); // detect special
+            value.length > 7 ? checkPassLength.addClass('match') : checkPassLength.removeClass('match'); // detect 8 character
+        }
+
+        function triggerReinputPassword(confirm){
+            if (confirm.val().length != 0) {
+                confirm.val('');
+
+                if (confirm.hasClass('validation-passed')) {
+                    confirm.removeClass('validation-passed');
+                    confirm.parent().removeClass('validation-passed');
+                }
+
+                if (confirm.hasClass('validation-failed')) {
+                    confirm.removeClass('validation-failed');
+                    confirm.parent().removeClass('validation-error');
+                    confirm.parent().find('.validation-advice').hide();
+                }
+            }
+        }
+
+        jQuery(document).on("click tap focusin", function(e){
+            var element = jQuery(e.target);
+            if (element.hasClass('validate-password-custom')) {
+                _pwdHint.addClass('active');
+                // focus out element
+                element.focusout(function(){
+                    _pwdHint.removeClass('active');
+                });
+            }else{
+                if (_pwdHint.hasClass('active')) {
+                    _pwdHint.removeClass('active');
+                }
+            }
+        });
+    },
+
+    applyCustomDropdown: function ($selector) {
+        if (!NS.isTouch()) {
+            $selector.nsdropdown();
+        } else {
+            if ($selector.hasClass('touch-custom-dropdown')) {
+                $selector.nsdropdown();
+            }
+        }
+    },
+
+    checkForIntegrity: {
+        parent: undefined,
+        init: function (isAjax) {
+            this.parent = PET.common;
+
+            this.storeLocatorSuggestorSwap();
+        },
+
+        storeLocatorSuggestorSwap: function () {
+            /* move the store locator suggestor so it can have a responsive width */
+            jQuery(window).load(function () {
+                jQuery('#anonymous_element_1').appendTo(jQuery('div.suggestor'));
+            });
+        }
+
+    },
+
+
+    bindEvents: function (isAjax) {
+        jQuery(window).on('ns:resize', PET.common.resize);
+
+    },
+
+    resize: function () {
+        PET.common.cmsCollapseMenu.resize();
+    },
+
+    removeFromCart: function (el) {
+        // add loading pane
+        //show loader
+        var url = jQuery(el).attr('data-url');
+        var removedQty = jQuery(el).attr('qty');
+
+        jQuery.ajax({
+            type : 'POST',
+            dataType:'json',
+            data : {"ajax" : true},
+            url : url,
+            success : function(json) {
+                // if the code is valid then find out the discount
+                if (json.success === 'true'){
+                    jQuery('.top-cart-wrapper').html(json.topcart);
+                    Enterprise.TopCart.initialize('topCartContent');
+                    Enterprise.TopCart.showCart(7);
+
+                //Updating new cart qty total
+                    var cartQty = jQuery('#cartHeader span').html();
+                    if(cartQty >= removedQty){
+                        jQuery('#cartHeader span').html(cartQty);
+                    }
+                }
+            },
+            complete: function() {
+                //hide loader
+            }
+        });
+
+        return false;
+    },
+
+    resetPageTitle: function () {
+        jQuery('.page-title').prependTo('.main.col2-left-layout');
+    },
+
+    preventSubmitTwice: function () {
+        jQuery(".prevent-submit-twice").submit(function () {
+            var id = jQuery(this).closest("form").attr('id');
+            var form = new VarienForm(id);
+            if (form.validator && form.validator.validate()) {
+                jQuery(this).submit(function () {
+                    return false;
+                });
+                return true;
+            }
+            return false;
+        });
+    }
+
+};
+
+jQuery(function () {
+    PET.common.init();
+});
