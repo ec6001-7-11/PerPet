@@ -1,10 +1,257 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Title</title>
-</head>
-<body>
+    <head>
+        <meta charset="utf-8">
+	    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+	    <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>PerPet</title>
+        <!-- Bootstrap -->
+	    <link href="css/bootstrap.css" rel="stylesheet">
+        <link href="css/index.css" rel="stylesheet">
+        <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+    </head>
+    <body>
+  	    <!-- body code goes here -->
+        <div class="header">
+            <div class="header-top">
+                <a href="index.html">
+                    <img id="header-icon" src="images/index/header/icon.png" alt="PerPet">
+                </a>
+                <div class="header-top-right">
+                    <a href="#">
+                        <i class="fas fa-map-marker-alt"></i>
+                    </a>
+                    <a href="#">
+                        <i class="fas fa-user"></i>
+                    </a>
+                    <a href="#">
+                        <i class="fas fa-shopping-cart"></i>
+                    </a>
+                    <a href="#">
+                        <i class="fas fa-bell"></i>
+                    </a>
+                </div>
+                <form action="#">
+                    <input id="header-seachbox" type="search" placeholder="Search">
+                    <button id="header-search-submit" type="submit"><i class="fas fa-search"></i></button>
+                </form>
+            </div>
+            <div class="header-navbar">
+                <ul>
+                    <div class="dropdown">
+                        <a href="#" class="dropbtn">Reptile</a>
+                        <div class="dropdown-content">
+                            <a href="#">Link 1</a>
+                            <a href="#">Link 2</a>
+                            <a href="#">Link 3</a>
+                        </div>
+                    </div>
+                    <li><a href="#">Dog</a></li>
+                    <li><a href="#">Fish</a></li>
+                    <li><a href="#">Cat</a></li>
+                    <li><a href="#">Bird</a></li>
+                </ul>
+            </div>
+        </div>
+        <div id="carousel" class="carousel slide" data-ride="carousel">
+            <ol class="carousel-indicators">
+                <li data-target="#carousel" data-slide-to="0" class="active"></li>
+                <li data-target="#carousel" data-slide-to="1"></li>
+                <li data-target="#carousel" data-slide-to="2"></li>
+                <li data-target="#carousel" data-slide-to="3"></li>
+                <li data-target="#carousel" data-slide-to="4"></li>
+            </ol>
+            <div class="carousel-inner" role="listbox">
+                <div class="carousel-item carousel-item-1 active">
+                    <a href="#">
+                        <img class="d-block mx-auto" src="images/index/header/BANNER_Register-Now.png" alt="Register Now">
+                    </a>
+                    <div class="carousel-caption">
+                        <h5>First slide Heading</h5>
+                        <p>First slide Caption</p>
+                    </div>
+                </div>
+                <div class="carousel-item carousel-item-1">
+                    <a href="#">
+                        <img class="d-block mx-auto" src="images/index/header/BANNER_JOINUS.png" alt="Join Us">
+                    </a>
+                    <div class="carousel-caption">
+                        <h5>Second slide Heading</h5>
+                        <p>Second slide Caption</p>
+                    </div>
+                </div>
+                <div class="carousel-item carousel-item-1">
+                    <a href="#">
+                        <img class="d-block mx-auto" src="images/index/header/BANNER_BIGSALE.png" alt="Big Sale">
+                    </a>
+                    <div class="carousel-caption">
+                        <h5>Third slide Heading</h5>
+                        <p>Third slide Caption</p>
+                    </div>
+                </div>
+                <div class="carousel-item carousel-item-1">
+                    <a href="#">
+                        <img class="d-block mx-auto" src="images/index/header/BANNER_PETCOMMUNITY.png" alt="Pet Community">
+                    </a>
+                    <div class="carousel-caption">
+                        <h5>Third slide Heading</h5>
+                        <p>Third slide Caption</p>
+                    </div>
+                </div>
+                <div class="carousel-item carousel-item-1">
+                    <a href="#">
+                        <img class="d-block mx-auto" src="images/index/header/BANNER_PETHOTEL.png" alt="Pet Hotel">
+                    </a>
+                    <div class="carousel-caption">
+                        <h5>Third slide Heading</h5>
+                        <p>Third slide Caption</p>
+                    </div>
+                </div>
+            </div>
+            <a class="carousel-control-prev" href="#carousel" role="button" data-slide="prev">
+                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                <span class="sr-only">Previous</span>
+            </a>
+            <a class="carousel-control-next" href="#carousel" role="button" data-slide="next">
+                <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                <span class="sr-only">Next</span>
+            </a>
+        </div>
+        <div class="colorbar"></div>
+        <div class="functionbar">
+            <a href="#">
+                <img src="images/index/header/pet-walking.png" alt="Pet Walking" height="60px">
+            </a>
+            <a href="#">
+                <img src="images/index/header/pet-washing.png" alt="Pet Washing" height="60px">
+            </a>
+            <a href="#">
+                <img src="images/index/header/pet-hotel.png" alt="Pet Hotel" height="60px">
+            </a>
+            <a href="#">
+                <img src="images/index/header/door-to-door.png" alt="Door to Door" height="60px">
+            </a>
+        </div>
+        <div class="activity-container">
+            <div class="activity">
+                <div class="activity-image" style="background-image: url(images/index/middle/activity_1.png)"></div>
+                <div class="activity-right" style="background-color: #404040">
+                    <a href="#"><img src="images/index/middle/activity_1_text.png" alt="activity_1_text"></a>
+                    <button type="button">LEARN MORE</button>
+                </div>
+            </div>
+            <div class="activity">
+                <div class="activity-image" style="background-image: url(images/index/middle/activity_2.png)"></div>
+                <div class="activity-right" style="background-color: #F0F0F0">
+                    <a href="#"><img src="images/index/middle/activity_2_text.png" alt="activity_2_text"></a>
+                    <button type="button">LEARN MORE</button>
+                </div>
+            </div>
+        </div>
+        <div class="community-bar">
+            <div class="community-bar-content">
+                <img src="images/index/middle/community_dog.png" alt="dog" height="240px" style="float: left">
+                <div class="community-bar-text">
+                    <img src="images/index/middle/community_text_1.png" alt="Pet Community" height="60px" style="display: block; margin-bottom: 40px;">
+                    <img src="images/index/middle/community_text_2.png" alt="Find Friends" height="40px" style="display: block">
+                </div>
+                <button type="button">
+                    <span style="margin-right: 4px">FIND MORE</span>
+                    <i class="fas fa-fire-alt"></i>
+                </button>
+            </div>
+        </div>
+        <div class="community-pic-container">
+            <div class="community-pic">
+                <div class="community-pic-content">
+                    <img src="images/index/middle/community_pic_1.png" alt="">
+                    <p>Date With Friends</p>
+                </div>
+                <div class="community-pic-content">
+                    <img src="images/index/middle/community_pic_2.png" alt="">
+                    <p>Walk Dogs Together</p>
+                </div>
+                <div class="community-pic-content">
+                    <img src="images/index/middle/community_pic_3.png" alt="">
+                    <p>Share Pet Moments</p>
+                </div>
+            </div>
+        </div>
+        <div class="footer">
+            <div class="info">
+                <div class="info-content">
+                    <div class="info-content-list">
+                        <h5>Shop Now</h5>
+                        <ul>
+                            <li><a href="#">Dog</a></li>
+                            <li><a href="#">Cat</a></li>
+                            <li><a href="#">Fish</a></li>
+                            <li><a href="#">Bird</a></li>
+                            <li><a href="#">Dog</a></li>
+                            <li><a href="#">Cat</a></li>
+                            <li><a href="#">Fish</a></li>
+                        </ul>
+                    </div>
+                    <div class="info-content-list">
+                        <h5>Services</h5>
+                        <ul>
+                            <li><a href="#">Dog</a></li>
+                            <li><a href="#">Cat</a></li>
+                            <li><a href="#">Fish</a></li>
+                            <li><a href="#">Bird</a></li>
+                            <li><a href="#">Dog</a></li>
+                            <li><a href="#">Cat</a></li>
+                            <li><a href="#">Fish</a></li>
+                        </ul>
+                    </div>
+                    <div class="info-content-list">
+                        <h5>Pet Community</h5>
+                        <ul>
+                            <li><a href="#">Dog</a></li>
+                            <li><a href="#">Cat</a></li>
+                            <li><a href="#">Fish</a></li>
+                            <li><a href="#">Bird</a></li>
+                            <li><a href="#">Dog</a></li>
+                            <li><a href="#">Cat</a></li>
+                            <li><a href="#">Fish</a></li>
+                        </ul>
+                    </div>
+                    <div class="info-contactus">
+                        <h5>Contact Us</h5>
+                        <ul>
+                            <li>
+                                <i class="fas fa-phone-square"></i>
+                                <p class="key">Call us on</p><p class="value">+852 63478003</p>
+                            </li>
+                            <li>
+                                <i class="fas fa-envelope"></i>
+                                <p class="key">Email us at</p>
+                                <p class="value">
+                                    <a href="mailto:billyinhao96@qq.com?Subject=Feedback" target="_top" style="text-decoration: none; color: #191919">billyinhao96@qq.com</a>
+                                </p>
+                            </li>
+                            <li>
+                                <i class="fab fa-weixin"></i>
+                                <p class="key">Wechat us at</p><p class="value">BillYYH</p>
+                            </li>
+                        </ul>
+                        <p class="reminder">Monday to Friday 8am - 7pm Saturday &amp; Sunday 9am - 5pm AEST/AEDT</p>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-bar">
+                <div class="footer-bar-content">
+                    <p style="line-height: 48px; display: inline-block">© 2019 PerPet. All Rights Reserved</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- jQuery (necessary for Bootstrap's JavaScript plugins) --> 
+	    <script src="js/jquery-3.3.1.min.js"></script>
 
-</body>
+	    <!-- Include all compiled plugins (below), or include individual files as needed -->
+	    <script src="js/popper.min.js"></script> 
+	    <script src="js/bootstrap.js"></script>
+    </body>
+    
 </html>
