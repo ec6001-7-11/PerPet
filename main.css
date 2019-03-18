@@ -1,0 +1,328 @@
+
+/* Wang Yuhan Create */
+body{
+	margin:0;
+	position:relative;  
+    width:100%;
+}
+body, input, textarea {
+	font-family: "Source Sans Pro", Helvetica, sans-serif;
+	font-size: 1em;
+	font-weight: 400;
+	line-height: 1.75em;
+}
+hr {
+	border: 0;
+	border-bottom: solid 2px #efefef;
+}
+
+/*  header  */
+	#myHeader {
+	    background-color: #ffcc00 !important;
+	}
+	#myHeader .top-header {
+	 	padding: 0.5em 1em 0em 5em;
+	 	margin: 0;
+	}
+	#myHeader .top-header *{
+	 	vertical-align:middle; 
+	 	text-decoration: none;
+	}
+	#myHeader .image >img{
+		height: 2.5em;
+		width: auto;
+		border: 0;
+		display: inline-block;
+	}
+	#myHeader .header-right .image >img{
+		height: 1.7em;
+		width: auto;
+		border: 0;
+		display: inline-block;
+	}
+	#myHeader .header-right >a{
+		padding: 0 0.5em;
+	}
+	#myHeader .top-header #search{
+	 	width: 40%;
+	 	display: inline-block;
+	 	height: 2.5em;
+	 	margin-left:8em;
+	 	background: #f7f7f7;
+	    border-radius: 1.35em;
+	    border: solid 2px transparent;
+	    padding: 0 0.75em;
+	}
+	#myHeader .top-header #search-icon {
+	 	margin-left: -2.5em;
+	}
+	#myHeader .top-header #search-icon img{
+	 	height :1.5em;
+	}
+	#myHeader .header-right {
+	 	position: absolute;
+	 	right: 10px;
+	 	display: inline-block;
+	 	margin-top: 0.5em;
+	 	padding: 0;
+	}
+	#myHeader #navigation{
+	 	margin-top: 1em;
+		margin-bottom: 0.5em;
+
+	 }
+	 #myHeader #navigation span{
+		color:#000000;
+		font-size:1.2em;
+		margin:0em 2em;
+	}
+	#myHeader .nvi-dropdown span:after{
+		content: "";
+	    background-image: url(../../images/header/1225446.png);
+	    background-size: 1em 0.5em;
+	    position: absolute;
+	    width: 1em;
+	    height: 0.5em;
+	    z-index: 100;
+	    top: 4.1em;
+	    left:auto;
+	    margin-left: 0.2em;
+	    background-repeat: no-repeat;
+	}
+	#myHeader .nvi-dropdown {
+	  	width: auto;
+	  	display: inline-block;
+	}
+	#myHeader .nvi-dropdown-content {
+	 	 display: none;
+	 	 position: absolute;
+	  	left:0;
+	  	background-color: #ffffff;
+	  	width: 100%;
+	  	box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+	}
+	#myHeader .nvi-dropdown-content >div{
+		display: inline-block;
+	}
+	#myHeader .nvi-dropdown:hover .nvi-dropdown-content {
+	  	display: block;
+	}
+	#myHeader .nvi-dropdown:hover span:after{
+		content: "";
+	    background-image: url(../../images/header/1225504.png);
+	    background-size: 1em 0.5em;
+	    position: absolute;
+	    width: 1em;
+	    height: 0.5em;
+	    z-index: 100;
+	    top: 4.1em;
+	    left:auto;
+	    margin-left: 0.2em;
+	    background-repeat: no-repeat;
+	}
+	#myHeader .nvi-image{
+		width:30%;
+		margin-left: 1em;
+	}
+	#myHeader .nvi-image img{
+		width: 100%;
+		margin-bottom: -0.5em;
+	}
+	#myHeader .nvi-catagory{
+		vertical-align: top;
+		padding: 1em 1em 1em 5em;
+	}
+	header{
+		position: fixed !important;
+		width: 100% !important;
+		z-index: 3 !important;
+	}
+
+/* Main */
+
+	#main form{
+	    padding-top: 7em;
+	    width: 45%;
+	    position: relative;
+	    margin-left: 40%;
+	    display: inline-block;
+	}
+	#main input{
+		border-radius: 0.35em;
+	}
+	#main .head-text{
+		font-size: 1.5em;
+		font-weight: 800;
+		margin:3em 0em 1em 0em;
+	}
+	#main .personal-info{
+		position: relative;
+		margin:2em 0em;
+	}
+	#main .personal-info span {
+		font-size: 1em;
+		padding: 0em 0em 0em 0em;
+	}
+	#main .personal-info span >b{
+		color: red;
+	}
+	#main .personal-info input[type="text"],#main input[type="password"]{
+		display: inline-block;
+		width: 70%;
+		position: absolute;
+		right: 5%;
+		border: solid;
+		border-width: 0.1em;
+		margin: -0.5em;
+		height: 2.5em;
+	    background: #ffffff;
+	    border-color:#bfbfbf;
+	}
+	#main .personal-info input[type="checkbox"]{
+		width: 1em;
+		height: 1em;
+		border: solid;
+		border-width: 0.1em;
+	    background: #f7f7f7;
+	    border-color:#bfbfbf;
+	    position: absolute;
+		left: 26%;
+		top:0.2em;
+	}
+	#main .personal-info #agreement{
+		width: 60%;
+		position: absolute;
+		font-size: 1em;
+		left: 30%;
+		margin-bottom: 3em;
+	}
+	#main #agree-hr{
+		margin-top: 6em;
+	}
+	#main #your-pet{
+		margin:1em 0em;
+	}
+	#main .pet-select{
+		text-align: center;
+		width: 100%;
+		display: flex;
+		justify-content: space-between;
+	}
+	#main .pet-select ul{
+		display: inline-block;
+		padding: 0;
+		width:15%;
+	}
+	#main .pet-select ul li{
+		display: block;
+		text-align: center;
+	}
+	#main .pet-select ul li img{
+		width:100%;
+		height: auto;
+	}
+	#main .pet-select ul li input{
+		width: 1em;
+		height: 1em;
+	}
+	#main hr{
+		margin: 0em 0 2em 0;
+	}
+	#main input[type="submit"]{
+		text-align: center;
+		color: #ffffff;
+		width: 60%;
+		background-color: #ffcc00;
+		border-radius: 0.5em;
+		font-size: 1.5em;
+		height: 3em;
+		margin-bottom: 12em;
+	}
+	#main .reg-submit{
+		text-align: center;
+	}
+	#main input[type="submit"]:hover{
+		border-color: #995c00;
+		color: #995c00 !important;
+	}
+	#main input[type="button"]:active{
+		background-color: rgba(73, 191, 157, 0.1);
+		border-color: #995c00;
+		color: #ffcc80 !important;
+	}
+	body .dog-background {
+		width:27%;
+		position: fixed;
+		display: inline-block;
+		border-right-style: solid;
+		border-right-width: 1em;
+		border-right-color: #000000;
+		left:0;
+		top: 6.5em;
+	}
+	body .dog-background >img{
+		width:100%;
+	}
+
+/* Footer */
+
+	#footer {
+		background-color: #000000;
+		bottom: 0;
+		left: 0;
+		position: absolute;
+		text-align: center;
+		width: 100%;
+	}
+	#footer .inner{
+		text-align: left;
+		position: relative;
+		padding: 0.5em 5em;
+	}
+	#footer .service {
+		margin: 0 0 0 0;
+		display: inline-block;
+	}
+	#footer .service >li {
+		display: block;
+		margin-left: 0.75em;
+		padding-left: 0.75em;
+		color: #ffffff;
+		font-size: 1em
+	}
+	#footer .service >li:first-child{
+		font-size: 1em;
+	}
+	#footer .service li a{
+		color:#ffffff;
+		font-size: 0.8em;
+		text-decoration: none;
+	}
+	#footer .contact-us{
+		display: inline-block;
+		background-color: #ffcc00;
+		padding: 0em 3em 0em 3em;
+		position: absolute;
+		text-align: center;
+		width: 20%;
+		top:0;
+		right:3em;
+		height: 100%;
+	}
+	#footer .contact-us ul{
+		margin-top: 0em;
+	}
+	#footer .contact-us li{
+		list-style: none;
+		text-align: left;
+		font-size: 1em;
+		padding:0.5em 0em;
+	}
+	#footer .contact-us li:first-child{
+		font-size: 1.2em;
+	}
+	#footer .contact-us li img{
+		width: 1.5em;
+		height: auto;
+	}
+
